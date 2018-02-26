@@ -22,13 +22,13 @@ myinput1 = {
     "action": "testbot",
     "actionIncomplete": False,
     "parameters": {
-      "user1": "Dan",
+      "user1": "Tim",
       "sum": {
-        "amount": 20,
-        "currency": "USD"
+        "amount": 1000,
+        "currency": "UAH"
       },
       "sum_basic_currency": "",
-      "user2": ""
+      "user2": "Dan"
     },
     "contexts": [],
     "metadata": {
@@ -604,12 +604,64 @@ def add_payment(req, collection_name):
 
     return response
 
+def update_balance(collection_name):
+    '''
+        Function recalculates values in 'total_balance' for the whole log, taking into consideration
+        added payments, changes in initial balance, deletion and modification of payments
+    '''
+    # Response to be returned
+    response = {"status": None, "payload": None}
+
+    # 1. Connect to our collection
+    client = MongoClient()
+    db = client.CBB
+    if collection_name not in db.collection_names():
+        response = {"status": "error", "payload": "Log not found"}
+        return response
+    else:
+        try:
+            # Get initial balance from the 1st document by "_id" (date)
+            initial_balance = db[collection_name].find_one({"log": "info"})["initial_balance"] # dictionary - {"Tim": 0, "Dan": 0}
+            print(initial_balance)
+            print("")
+            # Iterate through documents (actions) and get documents with "action_type" == "add_payment"
+            payments = db[collection_name].find({"action_type": "add_payment"})
+            for payment in payments:
+                # Only documents with "deleted": {"status": False} will be used in recalculation
+                if payment["deleted"]["status"] == False:
+                    action_id = payment["_id"]
+                    print(action_id)
+                    transaction_balance = payment["transaction_balance"]
+                    print(transaction_balance)
+                    total_balance = {}
+                    for user, user_gets in transaction_balance.items():
+                        total_balance.update({user: initial_balance[user] + user_gets})
+                        initial_balance[user] = total_balance[user]
+
+                    # Update total_balance in corresponding document in DB
+                    try:
+                        db[collection_name].update_one({"_id": action_id}, {'$set': {"total_balance": total_balance}})
+                    except Exception as error:
+                        response = {"status": "error", "payload": error}
+                        return response
+
+        except Exception as error:
+            response = {"status": "error", "payload": error}
+            print(str(response))
+            return response
+
+    response = {"status": "ok", "payload": "Total balance recalculated successfully"}
+    return response
+
+
 ##################### TESTING ##############################################
 creator_id = myinput1["originalRequest"]["data"]["message"]["from"]["id"]
 users = ['Tim', 'Dan', 'Ann']
 #print(create_log(creator_id, users))
 
-collection_name = "chi-horse-260218"
-print(add_payment(myinput1, collection_name))
+collection_name = "zeta-beaver-260218"
+#print(add_payment(myinput1, collection_name))
 
 #print(delete_log(collection_name, 123))
+
+update_balance(collection_name)
