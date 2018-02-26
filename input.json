@@ -1,0 +1,163 @@
+{
+  'transactions': [
+    {
+      'total_balance': {
+        'Tim': 0, 'Ann': 0, 'Dan': 0
+      },
+      'timestamp': 'today',
+      'amount': 0,
+      'who_paid': '',
+      'who_received': 'all',
+      'transaction_balance': {},
+      'transaction_number': 0
+    },
+    {
+      'total_balance': {
+        'Tim': -66.67, 'Ann': -66.67, 'Dan': 133.33
+      },
+      'timestamp': '2018-02-22T09:01:10.433Z',
+      'amount': 200,
+      'who_paid': 'Dan',
+      'who_received': 'all',
+      'transaction_balance': {
+        'Tim': -66.66666666666667, 'Ann': -66.66666666666667, 'Dan': 133.33333333333331
+      },
+      'transaction_number': 2
+    }
+  ],
+  'users': ['Tim', 'Dan', 'Ann']
+}
+
+{
+'transactions': [
+  {
+    'transaction_balance': {},
+    'total_balance': {
+      'Ann': 0,
+      'Tim': 0,
+      'Dan': 0
+    },
+    'who_paid': '',
+    'who_received': 'all',
+    'amount': 0,
+    'timestamp': 'today',
+    'transaction_number': 0
+  },
+  {
+    'transaction_balance': {
+      'Ann': -179.33333333333334,
+      'Tim': 358.66666666666663,
+      'Dan': -179.33333333333334
+    },
+    'total_balance': {
+      'Ann': -179.33,
+      'Tim': 358.67,
+      'Dan': -179.33
+    },
+    'who_paid': 'Tim',
+    'who_received': 'all',
+    'amount': 538.0,
+    'timestamp': '2018-02-23T10:24:59.404Z',
+    'transaction_number': 1
+  },
+  {
+    'transaction_balance': {
+      'Ann': -166.66666666666666,
+      'Tim': -166.66666666666666,
+      'Dan': 333.33333333333337
+    },
+    'total_balance': {
+      'Ann': -346.0,
+      'Tim': 192.0,
+      'Dan': 154.0
+    },
+    'who_paid': 'Dan',
+    'who_received': 'all',
+    'amount': 500.0,
+    'timestamp': '2018-02-23T10:25:13.811Z',
+    'transaction_number': 2
+  },
+  {
+    ...
+  }
+  },
+  'users': ['Tim', 'Dan', 'Ann']
+}
+
+    '''
+        Report - variant 1 - problems if many users, in telegram etc. hard to maintain same nice 'table'
+        +-----+------------------+-----+--------+--------+--------+--------+
+        |  #  |       Date       |     |   Tim  |   Dan  |   Ann  | Samuel |
+        +-----+------------------+-----+--------+--------+--------+--------+
+        |   - | 23/02/2018 22:29 |     |   0.00 |   0.00 |   0.00 |   0.00 |
+        +-----+------------------+-----+--------+--------+--------+--------+
+        |   1 | 23/02/2018 22:29 |     |  50.00 |        |        |        |
+        +-----+------------------+-----+--------+--------+--------+--------+
+        |     |                  |     |  37.50 | -12.50 | -12.50 | -12.50 |
+        +-----+------------------+-----+--------+--------+--------+--------+
+        |     |                  |     |  37.50 | -12.50 | -12.50 | -12.50 |
+        +-----+------------------+-----+--------+--------+--------+--------+
+        |   2 | 23/02/2018 22:29 |     |        |  50.00 |        |        |
+        +-----+------------------+-----+--------+--------+--------+--------+
+        |     |                  |     | -12.50 |  37.50 | -12.50 | -12.50 |
+        +-----+------------------+-----+--------+--------+--------+--------+
+        |     |                  |     |  25.00 |  25.00 | -25.00 | -25.00 |
+        +-----+------------------+-----+--------+--------+--------+--------+
+        |   2 | 23/02/2018 22:29 |     | Samuel | Samuel | Samuel | Samuel |
+        +-----+------------------+-----+--------+--------+--------+--------+
+    '''
+    '''
+        Report - variant 2, 'text'
+
+        Start
+        Date/Time: 23/02/2018 22:29
+        Balance:
+        Tim: 0.00; Dan: 0.00; Ann: 0.00
+        ###########################
+        Transaction #: 1
+        Date/Time: 23/02/2018 22:29
+        Dan pays 500 for all
+        Balance:
+        Tim: -166.67; Dan: 333.33; Tim: -166.67
+        ###########################
+        Transaction #: 2
+        Date/Time: 23/02/2018 22:29
+        Tim pays 1000 for all
+        Balance:
+        Tim: 500.00; Dan: 0.00; Tim: -500.00
+        ###########################
+        Transaction #: Deleted
+        Date/Time: 23/02/2018 22:29
+        Tim pays 1000 for all
+        Balance:
+        Tim: 500.00; Dan: 0.00; Tim: -500.00
+    '''
+
+{
+  'id': 'ee0c47cb-4823-4c06-a730-d85d9aa06c93',
+  'lang': 'en',
+  'sessionId': '9b843d91-391d-4bb3-b827-603e5312bbff',
+  'timestamp': '2018-02-25T15:25:36.286Z',
+  'originalRequest': {
+    'data': {
+      'update_id': 686221086,
+      'message': {
+        'message_id': 499,
+        'text': '000000',
+        'from': {
+          'id': 178180819,
+          'last_name': 'D.',
+          'is_bot': False,
+          'language_code': 'ru-RU',
+          'first_name': 'Iurii'},
+        'chat': {
+          'id': 178180819,
+          'last_name': 'D.',
+          'type': 'private',
+          'first_name': 'Iurii'
+        },
+        'date': 1519572336
+      }
+    },
+    'source': 'telegram'
+  }, 'result': {'metadata': {'webhookUsed': 'true', 'intentId': 'b0f482b9-2d3b-412a-8ad3-673ddfd1cf8c', 'webhookForSlotFillingUsed': 'false', 'intentName': 'test'}, 'source': 'agent', 'parameters': {}, 'speech': '', 'action': 'commonbalancebot-getjson', 'contexts': [{'name': 'generic', 'parameters': {'user.original': '', 'user': '', 'telegram_chat_id': '178180819'}, 'lifespan': 0}], 'score': 1.0, 'resolvedQuery': '000000', 'actionIncomplete': False, 'fulfillment': {'messages': [{'type': 0, 'speech': ''}], 'speech': ''}}, 'status': {'errorType': 'success', 'code': 200, 'webhookTimedOut': False}}
