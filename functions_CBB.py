@@ -22,13 +22,13 @@ myinput1 = {
     "action": "testbot",
     "actionIncomplete": False,
     "parameters": {
-      "user1": "Tim",
+      "user1": "Dan",
       "sum": {
-        "amount": 1000,
-        "currency": "UAH"
+        "amount": 100,
+        "currency": "USD"
       },
       "sum_basic_currency": "",
-      "user2": "Dan"
+      "user2": ""
     },
     "contexts": [],
     "metadata": {
@@ -277,7 +277,7 @@ def fetch_balance(transaction):
         output += "\n{}: {}".format(user, user_balance)
     return output
 
-def balance(user):
+def balance_old(user):
     '''
         Function gets
         1) specific user name (optional, in case no user is passed - displays balance for all users),
@@ -382,6 +382,7 @@ def create_log(creator_id, users):
         'log': 'info',
         'log_status': 'active',
         'creator_id': creator_id,
+        'log_name': collection_name,
         'active_users': users,
         'initial_balance': {}
     }
@@ -620,11 +621,11 @@ def update_balance(collection_name):
         return response
     else:
         try:
-            # Get initial balance from the 1st document by "_id" (date)
+            # 2. Get initial balance from the 1st document by "_id" (date)
             initial_balance = db[collection_name].find_one({"log": "info"})["initial_balance"] # dictionary - {"Tim": 0, "Dan": 0}
             print(initial_balance)
             print("")
-            # Iterate through documents (actions) and get documents with "action_type" == "add_payment"
+            # 3. Iterate through documents (actions) and get documents with "action_type" == "add_payment"
             payments = db[collection_name].find({"action_type": "add_payment"})
             for payment in payments:
                 # Only documents with "deleted": {"status": False} will be used in recalculation
@@ -638,7 +639,7 @@ def update_balance(collection_name):
                         total_balance.update({user: initial_balance[user] + user_gets})
                         initial_balance[user] = total_balance[user]
 
-                    # Update total_balance in corresponding document in DB
+                    # 4. Update total_balance in corresponding document in DB
                     try:
                         db[collection_name].update_one({"_id": action_id}, {'$set': {"total_balance": total_balance}})
                     except Exception as error:
@@ -650,9 +651,54 @@ def update_balance(collection_name):
             print(str(response))
             return response
 
+    # 5. Prepare Ok response
     response = {"status": "ok", "payload": "Total balance recalculated successfully"}
     return response
 
+def balance(collection_name, user):
+    '''
+        Function gets
+        1) collection_name and
+        2) specific user name (optional, in case no user is passed - balance is displayer for all active users),
+        and returns balance for users/respective user
+    '''
+    # 1. Connect to our collection
+    client = MongoClient()
+    db = client.CBB
+    if collection_name not in db.collection_names():
+        response = {"status": "error", "payload": "Log not found"}
+        return response
+    else:
+        try:
+            # 2. Check if "user" == specific user (not "all") and if so - if he/she is among our active users
+            if user != "all":
+                active_users = db[collection_name].find_one({"log": "info"})["active_users"]
+                if user not in active_users:
+                    response = {"status": "error", "payload": "User {} not found".format(user)}
+                    return response
+
+            # 3. Get the last document of type add_payment which is not deleted and retrieve "total_balance" field
+            filter1 = {"action_type": "add_payment"}
+            filter2 = {"deleted.status": False}
+            output_filter = {"_id": 0, "total_balance": 1}
+            payments = db[collection_name].find({"$and": [filter1, filter2]}, output_filter).sort([('_id', -1)]).limit(1)
+            for payment in payments:
+                balance_data = payment["total_balance"]
+
+            # 4. Formulate response
+            if user == "all":
+                balance = "Current balance:"
+                for everyuser, everyuser_balance in balance_data.items():
+                    balance += "\n{}: {}".format(everyuser, "{0:.2f}".format(everyuser_balance))
+            else:
+                balance = "Current balance for {}: {}".format(user, "{0:.2f}".format(balance_data[user]))
+        except Exception as error:
+            response = {"status": "error", "payload": error}
+            return response
+
+    # 5. Prepare Ok response
+    response = {"status": "ok", "payload": balance}
+    return response
 
 ##################### TESTING ##############################################
 creator_id = myinput1["originalRequest"]["data"]["message"]["from"]["id"]
@@ -664,4 +710,19 @@ collection_name = "zeta-beaver-260218"
 
 #print(delete_log(collection_name, 123))
 
-update_balance(collection_name)
+#update_balance(collection_name)
+print(balance(collection_name, "Mike"))
+print()
+
+'''
+client = MongoClient()
+db = client.CBB
+testcollection = db.testcollection
+query1 = {"greeting": "hello"}
+query2 = {"parameter.status": True}
+docs = testcollection.find({"$and": [query1, query2]})
+
+for doc in docs:
+    print(str(doc))
+
+'''
