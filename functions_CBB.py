@@ -22,13 +22,13 @@ myinput1 = {
     "action": "testbot",
     "actionIncomplete": False,
     "parameters": {
-      "user1": "Dan",
+      "user1": "Ann",
       "sum": {
-        "amount": 100,
-        "currency": "USD"
+        "amount": 1200,
+        "currency": "UAH"
       },
       "sum_basic_currency": "",
-      "user2": ""
+      "user2": "Dan"
     },
     "contexts": [],
     "metadata": {
@@ -172,161 +172,6 @@ myinput3 = {
 
 myinput4 = {'transactions': [{'transaction_balance': {}, 'total_balance': {'Ann': 0, 'Tim': 0, 'Dan': 0}, 'who_paid': '', 'who_received': 'all', 'amount': 0, 'timestamp': 'start', 'transaction_number': 0}, {'transaction_balance': {'Ann': -179.33333333333334, 'Tim': 358.66666666666663, 'Dan': -179.33333333333334}, 'total_balance': {'Ann': -179.33, 'Tim': 358.67, 'Dan': -179.33}, 'who_paid': 'Tim', 'who_received': 'all', 'amount': 538.0, 'timestamp': '2018-02-23T10:24:59.404Z', 'transaction_number': 1}, {'transaction_balance': {'Ann': -166.66666666666666, 'Tim': -166.66666666666666, 'Dan': 333.33333333333337}, 'total_balance': {'Ann': -346.0, 'Tim': 192.0, 'Dan': 154.0}, 'who_paid': 'Dan', 'who_received': 'all', 'amount': 500.0, 'timestamp': '2018-02-23T10:25:13.811Z', 'transaction_number': 2}, {'transaction_balance': {'Ann': 200.0, 'Tim': -200.0, 'Dan': 0}, 'total_balance': {'Ann': -146.0, 'Tim': -8.0, 'Dan': 154.0}, 'who_paid': 'Ann', 'who_received': 'Tim', 'amount': 200.0, 'timestamp': '2018-02-23T10:25:33.219Z', 'transaction_number': 3}, {'transaction_balance': {'Ann': 538.0, 'Tim': -269.0, 'Dan': -269.0}, 'total_balance': {'Ann': 392.0, 'Tim': -277.0, 'Dan': -115.0}, 'who_paid': 'Ann', 'who_received': 'all', 'amount': 807.0, 'timestamp': '2018-02-23T10:25:50.724Z', 'transaction_number': 4}, {'transaction_balance': {'Ann': -277.0, 'Tim': 277.0, 'Dan': 0}, 'total_balance': {'Ann': 115.0, 'Tim': 0.0, 'Dan': -115.0}, 'who_paid': 'Tim', 'who_received': 'Ann', 'amount': 277.0, 'timestamp': '2018-02-23T20:07:13.708Z', 'transaction_number': 5}, {'total_balance': {'Ann': 0.0, 'Tim': 0.0, 'Dan': 0.0}, 'transaction_balance': {'Ann': -115.0, 'Tim': 0, 'Dan': 115.0}, 'amount': 115.0, 'who_paid': 'Dan', 'who_received': 'Ann', 'timestamp': '2018-02-23T20:07:24.209Z', 'transaction_number': 6}], 'users': ['Tim', 'Dan', 'Ann']}
 
-def add_payment_old(req):
-    '''
-        Function gets 1) info about transaction from JSON from webhook (user1=payer, user2(optinally)=receiver of
-        direct payment, otherwise user1 pays for all (including him/herself), payment sum (in basic currency or other
-        currency that has to be converted into basic currency) and 2) retrieves transaction log from txt file and
-        updates it with a new transaction. Returns dictionary with transactions (log) which is saved in txt file
-    '''
-    # Get our log (txt file will be substituted with Mongo DB)
-    with open("log.txt", "r+") as logfromtxt:
-        log = ast.literal_eval(logfromtxt.read())
-
-    user1 = req.get('result').get('parameters').get('user1') # USER1 is payer, required
-    user2 = req.get('result').get('parameters').get('user2') # USER2 is receiver in direct transactions, otherwise USER1 pays for all (including himself), optional
-    sum = req.get('result').get('parameters').get('sum') # {"amount": 100, "currency": "USD"}
-    sum_basic_currency = req.get('result').get('parameters').get('sum_basic_currency')
-    timestamp = req.get('timestamp')
-
-    print('user1 (payer): ' + user1)
-    print('user2 (receiver): ' + user2)
-    print('sum: ' + str(sum))
-    print('sum_basic_currency: ' + str(sum_basic_currency))
-
-    # If currency != basic (for eg., UAH), convert to basic currency
-    if sum == "":
-        amount = float(sum_basic_currency)
-    else:
-        if sum["currency"] == BASIC_CURRENCY:
-            amount = sum["amount"]
-        elif sum["currency"] == "USD":
-            amount = sum["amount"] * usd_uah
-        elif sum["currency"] == "EUR":
-            amount = sum["amount"] * eur_uah
-
-    print('sum_converted: ' + str(amount))
-
-    # In our 1st model we'll have 2 already registered users, Tim and Dan
-    if user2 == "": # means that user1 paid for all = he gets his sum - sum/users_quantity, for eg. if 2 users and user1 paid $50, his balance will be +25$
-        who_received = "all"
-        #every_user_gets = amount / len(log["users"])
-        payer_gets = amount - amount / len(log["users"])
-        recipient_gets = amount / len(log["users"]) * -1
-    else:
-        who_received = user2
-        payer_gets = amount
-        recipient_gets = amount * -1
-
-    print('payer_gets: ' + str(payer_gets))
-    print('recipient_gets: ' + str(recipient_gets))
-    #print("log: " + str(log))
-
-    nexttransaction = {
-                "timestamp": timestamp,
-                "transaction_number": len(log["transactions"]),
-                "who_paid": user1,
-                "who_received": who_received,
-                "amount": amount,
-                "transaction_balance": {},
-                "total_balance": {}
-    }
-
-    for user in log["users"]:
-        if user != user1: # calculate what recipient(s) gets/get
-            if user2 == "": # "pay for all", each recepient gets amount / usersN
-                nexttransaction["transaction_balance"].update({user: recipient_gets})
-                user_balance_was = log["transactions"][len(log["transactions"])-1]["total_balance"][user]
-                user_balance_now = float("{0:.2f}".format(user_balance_was + recipient_gets))
-            else:
-                if user == user2: # direct transaction between user1 and user2
-                    nexttransaction["transaction_balance"].update({user: recipient_gets})
-                    user_balance_was = log["transactions"][len(log["transactions"]) - 1]["total_balance"][user]
-                    user_balance_now = float("{0:.2f}".format(user_balance_was + recipient_gets))
-                else: # direct transaction between user1 and user2, other users get 0
-                    nexttransaction["transaction_balance"].update({user: 0})
-                    user_balance_was = log["transactions"][len(log["transactions"]) - 1]["total_balance"][user]
-                    user_balance_now = float("{0:.2f}".format(user_balance_was + 0))
-        else: # calculate what payer looses
-            nexttransaction["transaction_balance"].update({user: payer_gets})
-            user_balance_was = log["transactions"][len(log["transactions"])-1]["total_balance"][user]
-            user_balance_now = float("{0:.2f}".format(user_balance_was + payer_gets))
-        print("Balance of user {} was {}, became {}".format(user, user_balance_was, user_balance_now))
-        nexttransaction["total_balance"][user] = user_balance_now
-
-    #print("nexttransaction: " + str(nexttransaction))
-
-    log["transactions"].append(nexttransaction)
-    #print("New log: " + str(log))
-
-    with open("log.txt", "w") as logdump:
-        logdump.write(str(log))
-
-    print(str(log["transactions"][len(log["transactions"])-1]["total_balance"]))
-    print(" ")
-
-    return log
-
-def fetch_balance(transaction):
-    '''
-        Supportive function that takes a transaction block and returns balances for users
-    '''
-    total_balance = transaction["total_balance"]
-    output = ""
-    for user, user_balance in total_balance.items():
-        output += "\n{}: {}".format(user, user_balance)
-    return output
-
-def balance_old(user):
-    '''
-        Function gets
-        1) specific user name (optional, in case no user is passed - displays balance for all users),
-        2) reads our transactions log from a txt (later - DB) and
-        returns a string with this balance
-    '''
-    # Get our log (txt file will be substituted with Mongo DB)
-    with open("log.txt", "r") as logfromtxt:
-        log = ast.literal_eval(logfromtxt.read())
-
-    # Get last transaction
-    last_transaction = log["transactions"][len(log["transactions"])-1]
-    #print('last_transaction: ' + str(last_transaction))
-
-    if user == "all":
-        balance = "Current balance:"
-        for everyuser, everyuser_balance in last_transaction["total_balance"].items():
-            balance += "\n{}: {}".format(everyuser, everyuser_balance)
-    else:
-        balance = "Current balance for user {}: {}".format(user, last_transaction["total_balance"][user])
-
-    return balance
-
-def statement():
-    '''
-        Function reads log.txt and returns a text statement with all transactions
-    '''
-    with open("log.txt", "r") as logfromtxt:
-        log = ast.literal_eval(logfromtxt.read())
-
-    for x in range(len(log["transactions"])):
-        if x == 0:
-            start_transaction = log["transactions"][0]
-            report = "Start\nDate/Time: {}\nBalance:{}".format(start_transaction["timestamp"], fetch_balance(start_transaction))
-        else:
-            every_transaction = log["transactions"][x]
-            transaction_number = every_transaction["transaction_number"]
-            date_time = every_transaction["timestamp"]
-            who_paid = every_transaction["who_paid"]
-            amount = every_transaction["amount"]
-            who_received = every_transaction["who_received"]
-            if who_received == "all":
-                what_happened = "{} paid {} {} for all".format(who_paid, amount, BASIC_CURRENCY)
-            else:
-                what_happened = "{} paid {} {} to {}".format(who_paid, amount, BASIC_CURRENCY, who_received)
-            report += "\n###########################\nTransaction #: {}\nDate/Time: {}\n{}\nBalance:{}".format(transaction_number, date_time, what_happened, fetch_balance(every_transaction))
-
-    return report
-
 def commonbalancebot_speech(ourspeech, oursource, outputcontext):
     '''
         Composes response for different platforms for CommonBalanceBot
@@ -467,12 +312,10 @@ def delete_log(collection_name, creator_id):
 def add_payment(req, collection_name):
     '''
         Function gets
-        1) info about transaction from JSON via webhook (user1=payer, user2[optinally]=receiver of
+        1) req - info about transaction from JSON via webhook (user1=payer, user2[optinally]=receiver of
         direct payment, otherwise user1 pays for all (including him/herself), payment sum (in basic currency or other
         currency that has to be converted into basic currency),
-        2) users list
-        3) collection name and
-        4) transaction creator ID,
+        2) collection name and
         calculates what each user gets after this transaction and inserts in collection a document with add
         payment data - see below
     '''
@@ -485,10 +328,10 @@ def add_payment(req, collection_name):
     sum = req.get('result').get('parameters').get('sum') # {"amount": 100, "currency": "USD"}
     sum_basic_currency = req.get('result').get('parameters').get('sum_basic_currency')
     creator_id = req.get("originalRequest").get("data").get("message").get("from").get("id")
-    print('user1 (payer): ' + user1)
-    print('user2 (receiver): ' + user2)
-    print('sum: ' + str(sum))
-    print('sum_basic_currency: ' + str(sum_basic_currency))
+    #print('user1 (payer): ' + user1)
+    #print('user2 (receiver): ' + user2)
+    #print('sum: ' + str(sum))
+    #print('sum_basic_currency: ' + str(sum_basic_currency))
 
     # 2. Check if such collection (log) exists, belongs to sender and if collection is not deleted (=="active")
     client = MongoClient()
@@ -506,28 +349,27 @@ def add_payment(req, collection_name):
         except Exception as error:
             response = {"status": "error", "payload": error}
             return response
-
     else:
         response = {"status": "error", "payload": "Log not found"}
         return response
 
     # 3. Check if user1 and/or user2 belong to active_users (the 1st document in collection, log_info)
     log_info = db[collection_name].find_one({"log": "info"})
-    active_users = log_info["active_users"]
+    users = log_info["active_users"]
     our_users = ""
     for x in range(len(users)):
         if x == 0:
             our_users += users[x]
         else:
             our_users += ", " + users[x]
-    if user1 not in active_users and (user2 != "" and user2 not in active_users):
+    if user1 not in users and (user2 != "" and user2 not in users):
         response = {"status": "error",
                     "payload": "Sorry, who are {} and {}? Can't find them in our user list ({})".format(user1, user2, our_users)}
         return response
-    if user1 not in active_users:
+    if user1 not in users:
         response = {"status": "error", "payload": "Sorry, who is {}? Can't find him/her in our user list ({})".format(user1, our_users)}
         return response
-    if user2 != "" and user2 not in active_users:
+    if user2 != "" and user2 not in users:
         response = {"status": "error",
                     "payload": "Sorry, who is {}? Can't find him/her in our user list ({})".format(user2, our_users)}
         return response
@@ -560,8 +402,8 @@ def add_payment(req, collection_name):
         payer_gets = amount
         recipient_gets = amount * -1
 
-    print('payer_gets: ' + str(payer_gets))
-    print('recipient_gets: ' + str(recipient_gets))
+    #print('payer_gets: ' + str(payer_gets))
+    #print('recipient_gets: ' + str(recipient_gets))
     #print("log: " + str(log))
 
     # 6. Prepare document to be inserted to DB
@@ -623,32 +465,35 @@ def update_balance(collection_name):
         try:
             # 2. Get initial balance from the 1st document by "_id" (date)
             initial_balance = db[collection_name].find_one({"log": "info"})["initial_balance"] # dictionary - {"Tim": 0, "Dan": 0}
-            print(initial_balance)
-            print("")
+            #print(initial_balance)
+            #print("")
             # 3. Iterate through documents (actions) and get documents with "action_type" == "add_payment"
             payments = db[collection_name].find({"action_type": "add_payment"})
             for payment in payments:
                 # Only documents with "deleted": {"status": False} will be used in recalculation
                 if payment["deleted"]["status"] == False:
                     action_id = payment["_id"]
-                    print(action_id)
+                    #print(action_id)
                     transaction_balance = payment["transaction_balance"]
-                    print(transaction_balance)
+                    #print(transaction_balance)
                     total_balance = {}
                     for user, user_gets in transaction_balance.items():
-                        total_balance.update({user: initial_balance[user] + user_gets})
-                        initial_balance[user] = total_balance[user]
+                        if user in initial_balance: # for existing users
+                            total_balance.update({user: initial_balance[user] + user_gets})
+                            initial_balance[user] = total_balance[user]
+                        else: # In case user was added
+                            total_balance[user] = user_gets
 
                     # 4. Update total_balance in corresponding document in DB
                     try:
                         db[collection_name].update_one({"_id": action_id}, {'$set': {"total_balance": total_balance}})
                     except Exception as error:
-                        response = {"status": "error", "payload": error}
+                        response = {"status": "error", "payload": "update_balance(): {}".format(error)}
                         return response
 
         except Exception as error:
-            response = {"status": "error", "payload": error}
-            print(str(response))
+            response = {"status": "error", "payload": "update_balance(): {}".format(error)}
+            #print(str(response))
             return response
 
     # 5. Prepare Ok response
@@ -662,6 +507,9 @@ def balance(collection_name, user):
         2) specific user name (optional, in case no user is passed - balance is displayer for all active users),
         and returns balance for users/respective user
     '''
+    # Response to be returned
+    response = {"status": None, "payload": None}
+
     # 1. Connect to our collection
     client = MongoClient()
     db = client.CBB
@@ -693,12 +541,166 @@ def balance(collection_name, user):
             else:
                 balance = "Current balance for {}: {}".format(user, "{0:.2f}".format(balance_data[user]))
         except Exception as error:
-            response = {"status": "error", "payload": error}
+            response = {"status": "error", "payload": "balance(): {}".format(error)}
             return response
 
     # 5. Prepare Ok response
     response = {"status": "ok", "payload": balance}
     return response
+
+def statement(collection_name):
+    '''
+        Function a text statement with all transactions (log creation, payments, adding/deleting users;
+        deleting/modifying payments are not displayed)
+    '''
+    # Response to be returned
+    response = {"status": None, "payload": None}
+    statement = ""
+    payment_number = 0
+
+    # 1. Check if collection exists
+    client = MongoClient()
+    db = client.CBB
+    if collection_name not in db.collection_names():
+        response = {"status": "error", "payload": "Log not found"}
+        return response
+    else:
+        try:
+            # 2. Check if collection is active (hasn't been deleted)
+            log_info = db[collection_name].find_one({"log": "info"})
+            if log_info["log_status"] == "inactive":
+                response = {"status": "error", "payload": "Log has been deleted"}
+                return response
+
+            # 3. Get documents with "action_type" "log" (log creation info), 'add_payment', "add_user" and "delete_user"
+            filter = {
+                "$or": [
+                    {"log": "info"},
+                    {
+                        "$and": [
+                            {"action_type": "add_payment"},
+                            {"deleted.status": False}
+                        ]
+                    },
+                    {"action_type": "add_user"},
+                    {"action_type": "delete_user"}
+                ]
+            }
+            actions = db[collection_name].find(filter)
+            for action in actions:
+                # Log creation info
+                if "log" in action:
+                    # Date/time log was created
+                    timestamp = "{} {}".format(action["_id"].generation_time.date(), action["_id"].generation_time.time())
+
+                    # Log name
+                    log_name = action["log_name"]
+
+                    # Initial users and initial balance ("active" users field can be being updated)
+                    initial_users = ""
+                    initial_balance = ""
+                    for user, user_balance in action["initial_balance"].items():
+                        if initial_users != "":
+                            initial_users += ", "
+                            initial_balance += "\n"
+                        initial_users += user
+                        initial_balance += "{}: {}".format(user, "{0:.2f}".format(user_balance))
+
+                    # Compose block for "log" action
+                    log_statement = "Date/Time: {}\nLog \"{}\" was created\nUsers: {}\nBalance:\n{}\n".format(timestamp, log_name, initial_users, initial_balance)
+                    statement += log_statement
+
+                # add_payment info
+                if "action_type" in action and action["action_type"] == "add_payment":
+                    # Payments counter
+                    payment_number += 1
+
+                    # Payment's date/time
+                    timestamp = "{} {}".format(action["_id"].generation_time.date(), action["_id"].generation_time.time())
+
+                    # Payer
+                    who_paid = action["who_paid"]
+
+                    # Beneficiary(-ies)
+                    if action["who_received"] == "all":
+                        who_received = "for all"
+                    else:
+                        who_received = "to {}".format(action["who_received"])
+
+                    # Payment sum
+                    amount_basic_currency = action["amount"]
+
+                    # Balance
+                    balance = ""
+                    for user, user_balance in action["total_balance"].items():
+                        if balance != "":
+                            balance += "\n"
+                        balance += "{}: {}".format(user, "{0:.2f}".format(user_balance))
+
+                    # Compose block for "add_payment" action
+                    payment_statement = "Date/Time: {}\nTransaction #: {}\n{} paid {} {} {}\nBalance: \n{}".format(timestamp, payment_number, who_paid, amount_basic_currency, BASIC_CURRENCY, who_received, balance)
+                    statement += "*"*27
+                    statement += payment_statement
+
+        except Exception as error:
+            response = {"status": "error", "payload": "statement(): {}".format(error)}
+            return response
+
+    # 5. Prepare Ok response
+    response = {"status": "ok", "payload": statement}
+    return response
+
+def add_user(collection_name, creator_id, user):
+    '''
+        Function gets collection (log) name, creator_id and a new user's name, and
+        1) updates a list of active users in the 1st document (with "log": "info")
+        2) inserts a new document with information on adding a new user
+        3) returns a message about user addition
+    '''
+    # Response to be returned
+    response = {"status": None, "payload": None}
+
+    # 1. Connect to our collection
+    client = MongoClient()
+    db = client.CBB
+    if collection_name not in db.collection_names():
+        response = {"status": "error", "payload": "Log not found"}
+        return response
+    else:
+        try:
+            # 2. Get our active users list and check if user is not already there
+            active_users = db[collection_name].find_one({"log": "info"})["active_users"]
+            if user in active_users:
+                response = {"status": "error", "payload": "Sorry, but we already have user {}".format(user)}
+                return response
+            else:
+                # 3. Update the list of active users
+                active_users.append(user)
+                db[collection_name].update_one({"log": "info"}, {'$set': {"active_users": active_users}})
+
+                ###
+                # 4. Prepare document about adding new user
+                add_user_action = {
+                    # '_id': 0, = creation date, used for sorting
+                    'creator_id': creator_id,
+                    'users': active_users,
+                    'action_type': 'add_user'
+                }
+
+                # 5. Insert documents to collection
+                try:
+                    add_user_id = db[collection_name].insert_one(add_user_action).inserted_id
+                except Exception as error:
+                    response = {"status": "error", "payload": "add_user(): {}".format(error)}
+                    return response
+        except Exception as error:
+            response = {"status": "error", "payload": "add_user(): {}".format(error)}
+            return response
+    # 5. Final Ok response
+    response = {"status": "ok",
+                "payload": "User {} successfully added".format(user)}
+    return response
+
 
 ##################### TESTING ##############################################
 creator_id = myinput1["originalRequest"]["data"]["message"]["from"]["id"]
@@ -709,20 +711,7 @@ collection_name = "zeta-beaver-260218"
 #print(add_payment(myinput1, collection_name))
 
 #print(delete_log(collection_name, 123))
-
-#update_balance(collection_name)
-print(balance(collection_name, "Mike"))
-print()
-
-'''
-client = MongoClient()
-db = client.CBB
-testcollection = db.testcollection
-query1 = {"greeting": "hello"}
-query2 = {"parameter.status": True}
-docs = testcollection.find({"$and": [query1, query2]})
-
-for doc in docs:
-    print(str(doc))
-
-'''
+#print(add_user(collection_name, creator_id, "Mike"))
+print(update_balance(collection_name))
+#print(balance(collection_name, "Mike"))
+#print(statement(collection_name))
