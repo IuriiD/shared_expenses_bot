@@ -124,24 +124,13 @@ add_user_action = {
   # '_id': 0, = creation date, used for sorting
   'creator_id': 178180819,
   'users': ['Tim', 'Dan', 'Ann', 'Mike'],
-  'action_type': 'add_user', # all variants: 'create_log', 'delete_log', 'add_payment', 'modify_payment', 'delete_payment', 'add_user', 'delete_user'
-  'total_balance': {
-    'Ann': -179.33,
-    'Tim': 200.33,
-    'Dan': -179.33,
-    'Mike': 0
-  }
+  'action_type': 'add_user' # all variants: 'create_log', 'delete_log', 'add_payment', 'modify_payment', 'delete_payment', 'add_user', 'delete_user'
 }
 
 delete_user_action = { # only users with zero balance can be deleted
   # '_id': 0, = creation date, used for sorting
   'creator_id': 178180819,
   'users': ['Dan', 'Ann', 'Mike'],
-  'action_type': 'delete_user', # all variants: 'create_log', 'delete_log', 'add_payment', 'modify_payment', 'delete_payment', 'add_user', 'delete_user'
-  'total_balance': {
-    'Ann': -179.33,
-    'Dan': -179.33,
-    'Mike': 0
-  }
+  'action_type': 'delete_user' # all variants: 'create_log', 'delete_log', 'add_payment', 'modify_payment', 'delete_payment', 'add_user', 'delete_user'
 }
 result = testcollection.insert_many([log_info, create_log_action, add_payment_action, modify_payment_action, delete_payment_action, add_user_action, delete_user_action, delete_log_action])

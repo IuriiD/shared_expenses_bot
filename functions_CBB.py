@@ -22,13 +22,13 @@ myinput1 = {
     "action": "testbot",
     "actionIncomplete": False,
     "parameters": {
-      "user1": "Ann",
+      "user1": "Dan",
       "sum": {
-        "amount": 1200,
+        "amount": 500,
         "currency": "UAH"
       },
       "sum_basic_currency": "",
-      "user2": "Dan"
+      "user2": "Tim"
     },
     "contexts": [],
     "metadata": {
@@ -270,7 +270,7 @@ def delete_log(collection_name, creator_id):
                 response = {"status": "error", "payload": "You don't have a log named '{}'".format(collection_name)}
                 return response
         except Exception as error:
-            response = {"status": "error", "payload": error}
+            response = {"status": "error", "payload": "delete_log()-1: {}".format(error)}
             return response
 
         try: # If it exists but hasn't yet been deleted (inactivated)
@@ -279,13 +279,13 @@ def delete_log(collection_name, creator_id):
                 response = {"status": "error", "payload": "Log already deleted"}
                 return response
         except Exception as error:
-            response = {"status": "error", "payload": error}
+            response = {"status": "error", "payload": "delete_log()-2: {}".format(error)}
             return response
 
         try: # Try to delete (inactivate) it
             db[collection_name].update_one({"log": "info"}, {'$set': {"log_status": "inactive"}})
         except Exception as error:
-            response = {"status": "error", "payload": error}
+            response = {"status": "error", "payload": "delete_log()-3: {}".format(error)}
             return response
     else:
         response = {"status": "error", "payload": "Log not found"}
@@ -306,7 +306,7 @@ def delete_log(collection_name, creator_id):
         return response
 
     # 5. Prepare final Ok response
-    response = {"status": "ok", "payload": delete_log_action_id}
+    response = {"status": "ok", "payload": "Log {} was deleted".format(collection_name)}
     return response
 
 def add_payment(req, collection_name):
@@ -347,7 +347,7 @@ def add_payment(req, collection_name):
                 response = {"status": "error", "payload": "Log has been deleted"}
                 return response
         except Exception as error:
-            response = {"status": "error", "payload": error}
+            response = {"status": "error", "payload": "add_payment()-1: {}".format(error)}
             return response
     else:
         response = {"status": "error", "payload": "Log not found"}
@@ -419,6 +419,7 @@ def add_payment(req, collection_name):
             'status': False,
             'date': None
         },
+        'payment_n': 0, # is updated using update_balance(); for deleted payments = -1
         'action_type': 'add_payment',
         'transaction_balance': {}, # updated below in cycle
         'total_balance': {}, # updated below in cycle
@@ -464,33 +465,51 @@ def update_balance(collection_name):
     else:
         try:
             # 2. Get initial balance from the 1st document by "_id" (date)
-            initial_balance = db[collection_name].find_one({"log": "info"})["initial_balance"] # dictionary - {"Tim": 0, "Dan": 0}
-            #print(initial_balance)
-            #print("")
-            # 3. Iterate through documents (actions) and get documents with "action_type" == "add_payment"
-            payments = db[collection_name].find({"action_type": "add_payment"})
+            initial_balance = db[collection_name].find_one({"log": "info"})[
+                "initial_balance"]  # dictionary - {"Tim": 0, "Dan": 0}
+            # print(initial_balance)
+            # print("")
+
+            # 3. Iterate through documents (actions) and get documents with "action_type" == "add_payment" and
+            # "deleted.status" == False
+            filter1 = {"action_type": "add_payment"}
+            filter2 = {"deleted.status": False}
+            payments = db[collection_name].find({"$and": [filter1, filter2]})
+
+            payment_n = 0  # payments counter
+
+            # Iterate through selected payments
             for payment in payments:
-                # Only documents with "deleted": {"status": False} will be used in recalculation
-                if payment["deleted"]["status"] == False:
-                    action_id = payment["_id"]
-                    #print(action_id)
-                    transaction_balance = payment["transaction_balance"]
-                    #print(transaction_balance)
-                    total_balance = {}
-                    for user, user_gets in transaction_balance.items():
-                        if user in initial_balance: # for existing users
-                            total_balance.update({user: initial_balance[user] + user_gets})
-                            initial_balance[user] = total_balance[user]
-                        else: # In case user was added
-                            total_balance[user] = user_gets
+                action_id = payment["_id"]
 
-                    # 4. Update total_balance in corresponding document in DB
-                    try:
-                        db[collection_name].update_one({"_id": action_id}, {'$set': {"total_balance": total_balance}})
-                    except Exception as error:
-                        response = {"status": "error", "payload": "update_balance(): {}".format(error)}
-                        return response
+                # Get transaction balance (what each active user gets)
+                transaction_balance = payment["transaction_balance"]
+                total_balance = {}
 
+                # Calculate current total balance for each user after this payment
+                for user, user_gets in transaction_balance.items():
+                    if user in initial_balance:  # for existing users
+                        total_balance.update({user: initial_balance[user] + user_gets})
+                        initial_balance[user] = total_balance[user]
+                    else:  # In case user was added
+                        total_balance[user] = user_gets
+
+                # If user was deleted and is not present in transaction_balance dict, delete it from
+                # initial_balance dict (which is being updated in cycle)
+                for user in initial_balance.keys():
+                    if user not in transaction_balance.keys():
+                        del initial_balance[user]
+
+                # Payment counter
+                payment_n += 1
+
+                # 4. Update total_balance in corresponding document in DB
+                try:
+                    db[collection_name].update_one({"_id": action_id}, {'$set': {"total_balance": total_balance}})
+                    db[collection_name].update_one({"_id": action_id}, {'$set': {"payment_n": payment_n}})
+                except Exception as error:
+                    response = {"status": "error", "payload": "update_balance(): {}".format(error)}
+                    return response
         except Exception as error:
             response = {"status": "error", "payload": "update_balance(): {}".format(error)}
             #print(str(response))
@@ -500,7 +519,7 @@ def update_balance(collection_name):
     response = {"status": "ok", "payload": "Total balance recalculated successfully"}
     return response
 
-def balance(collection_name, user):
+def balance(collection_name, user="all"):
     '''
         Function gets
         1) collection_name and
@@ -556,7 +575,7 @@ def statement(collection_name):
     # Response to be returned
     response = {"status": None, "payload": None}
     statement = ""
-    payment_number = 0
+    #payment_number = 0
 
     # 1. Check if collection exists
     client = MongoClient()
@@ -610,10 +629,10 @@ def statement(collection_name):
                     log_statement = "Date/Time: {}\nLog \"{}\" was created\nUsers: {}\nBalance:\n{}\n".format(timestamp, log_name, initial_users, initial_balance)
                     statement += log_statement
 
-                # add_payment info
+                # add_payment
                 if "action_type" in action and action["action_type"] == "add_payment":
                     # Payments counter
-                    payment_number += 1
+                    payment_number = action["payment_n"]
 
                     # Payment's date/time
                     timestamp = "{} {}".format(action["_id"].generation_time.date(), action["_id"].generation_time.time())
@@ -641,6 +660,46 @@ def statement(collection_name):
                     payment_statement = "Date/Time: {}\nTransaction #: {}\n{} paid {} {} {}\nBalance: \n{}".format(timestamp, payment_number, who_paid, amount_basic_currency, BASIC_CURRENCY, who_received, balance)
                     statement += "*"*27
                     statement += payment_statement
+
+                # add_user
+                if "action_type" in action and action["action_type"] == "add_user":
+                    # Action's date/time
+                    timestamp = "{} {}".format(action["_id"].generation_time.date(), action["_id"].generation_time.time())
+
+                    # User added
+                    user_added = action["new_user"]
+
+                    # Users after addition
+                    active_users = ""
+                    for user in action["users_after_addition"]:
+                        if active_users != "":
+                            active_users += ", "
+                        active_users += user
+
+                        # Compose block for "add_user" action
+                    add_user_statement = "Date/Time: {}\nUser {} was added with balance 0\nActive users: {}".format(timestamp, user_added, active_users)
+                    statement += "*"*27
+                    statement += add_user_statement
+
+                # delete user
+                if "action_type" in action and action["action_type"] == "delete_user":
+                    # Action's date/time
+                    timestamp = "{} {}".format(action["_id"].generation_time.date(), action["_id"].generation_time.time())
+
+                    # User added
+                    deleted_user = action["deleted_user"]
+
+                    # Users after deletion
+                    active_users = ""
+                    for user in action["users_after_deletion"]:
+                        if active_users != "":
+                            active_users += ", "
+                        active_users += user
+
+                    # Compose block for "add_user" action
+                    add_user_statement = "Date/Time: {}\nUser {} was removed\nActive users: {}".format(timestamp, deleted_user, active_users)
+                    statement += "*"*27
+                    statement += add_user_statement
 
         except Exception as error:
             response = {"status": "error", "payload": "statement(): {}".format(error)}
@@ -678,12 +737,12 @@ def add_user(collection_name, creator_id, user):
                 active_users.append(user)
                 db[collection_name].update_one({"log": "info"}, {'$set': {"active_users": active_users}})
 
-                ###
                 # 4. Prepare document about adding new user
                 add_user_action = {
                     # '_id': 0, = creation date, used for sorting
                     'creator_id': creator_id,
-                    'users': active_users,
+                    'new_user': user,
+                    'users_after_addition': active_users,
                     'action_type': 'add_user'
                 }
 
@@ -701,17 +760,95 @@ def add_user(collection_name, creator_id, user):
                 "payload": "User {} successfully added".format(user)}
     return response
 
+def delete_user(collection_name, creator_id, user):
+    '''
+        Function gets collection (log) name, creator_id and a user name to be deleted, and
+        1) updates a list of active users in the 1st document (with "log": "info")
+        2) inserts a new document with information on deleting a user
+        3) returns a message about user deletion
+    '''
+    # Response to be returned
+    response = {"status": None, "payload": None}
+
+    # 1. Connect to our collection
+    client = MongoClient()
+    db = client.CBB
+    if collection_name not in db.collection_names():
+        response = {"status": "error", "payload": "Log not found"}
+        return response
+    else:
+        try:
+            # 2. Get our active users list and check if user is not already there
+            active_users = db[collection_name].find_one({"log": "info"})["active_users"]
+            if user not in active_users:
+                response = {"status": "error", "payload": "Sorry, but I can't find such user"}
+                return response
+            else:
+                # 3. Only users with 0 balance can be removed
+                filter1 = {"action_type": "add_payment"}
+                filter2 = {"deleted.status": False}
+                output_filter = {"_id": 0, "total_balance": 1}
+                payments = db[collection_name].find({"$and": [filter1, filter2]}, output_filter).sort(
+                    [('_id', -1)]).limit(1)
+                for payment in payments:
+                    balance_data = payment["total_balance"]
+                if user in balance_data:
+                    deleted_user_balance = balance_data[user]
+                else:
+                    deleted_user_balance = 0
+                if deleted_user_balance != 0:
+                    response = {"status": "error", "payload": "Sorry, only users with 0 (zero) balance can be removed"}
+                    return response
+
+                # 4. Update the list of active users
+                active_users.remove(user)
+                db[collection_name].update_one({"log": "info"}, {'$set': {"active_users": active_users}})
+
+                # 5. Prepare document about adding new user
+                delete_user_action = {
+                    # '_id': 0, = creation date, used for sorting
+                    'creator_id': creator_id,
+                    'deleted_user': user,
+                    'users_after_deletion': active_users,
+                    'action_type': 'delete_user'
+                }
+
+                # 6. Insert documents to collection
+                try:
+                    delete_user_id = db[collection_name].insert_one(delete_user_action).inserted_id
+                except Exception as error:
+                    response = {"status": "error", "payload": "delete_user()-1: {}".format(error)}
+                    return response
+        except Exception as error:
+            response = {"status": "error", "payload": "delete_user()-2: {}".format(error)}
+            return response
+    # 7. Final Ok response
+    response = {"status": "ok",
+                "payload": "User {} successfully removed".format(user)}
+    return response
+
+'''
+    Functions left to create:
+    edit_payment()
+    delete_payment()
+    set_initial_balance()
+    change_basic_currency()
+    set_exchange_rates() 
+    send_report_to_email()
+'''
 
 ##################### TESTING ##############################################
 creator_id = myinput1["originalRequest"]["data"]["message"]["from"]["id"]
 users = ['Tim', 'Dan', 'Ann']
+collection_name1 = "zeta-beaver-260218"
+collection_name = "kappa-bat-280218"
+
 #print(create_log(creator_id, users))
-
-collection_name = "zeta-beaver-260218"
-#print(add_payment(myinput1, collection_name))
-
-#print(delete_log(collection_name, 123))
-#print(add_user(collection_name, creator_id, "Mike"))
+print(add_payment(myinput1, collection_name))
+#print(delete_log(collection_name, creator_id))
+#print(add_user(collection_name, creator_id, "Ron"))
 print(update_balance(collection_name))
-#print(balance(collection_name, "Mike"))
+#print(balance(collection_name))
+print(statement(collection_name))
+#print(delete_user(collection_name, creator_id, "Ron"))
 #print(statement(collection_name))
