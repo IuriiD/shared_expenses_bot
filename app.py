@@ -16,10 +16,14 @@ def webhook():
     # Get request parameters
     req = request.get_json(silent=True, force=True)
     action = req.get('result').get('action')
-    print(str(req))
+
+    # CommonBalanceBot - welcome
+    if action == "commonbalancebot-welcome":
+        ourspeech = functions_CBB.check_for_logs(req)["payload"]
+        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - add new payment
-    if action == "commonbalancebot-add_payment":
+    elif action == "commonbalancebot-add_payment":
         functions_CBB.add_payment(req)
         ourspeech = functions_CBB.balance("all")
         res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
@@ -41,6 +45,11 @@ def webhook():
     elif action == "commonbalancebot-getjson":
         ourspeech = 'hello'
         #print(str(req))
+        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+
+    # CommonBalanceBot - taking user back to conversation
+    elif action == "commonbalancebot-besidethepoint":
+        ourspeech = "What would you like to do next:\nAdd payment\nShow balance\nShow statement\nOther"
         res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     else:

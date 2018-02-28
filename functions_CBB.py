@@ -327,7 +327,7 @@ def add_payment(req, collection_name):
     user2 = req.get('result').get('parameters').get('user2') # USER2 is receiver in direct transactions, otherwise USER1 pays for all (including himself), optional
     sum = req.get('result').get('parameters').get('sum') # {"amount": 100, "currency": "USD"}
     sum_basic_currency = req.get('result').get('parameters').get('sum_basic_currency')
-    creator_id = req.get("originalRequest").get("data").get("message").get("from").get("id")
+    creator_id = req.get("originalRequest").get("data").get("message").get("from").get("id") # request is supposed to be not from Dialogflows' web demo but from integration platform
     #print('user1 (payer): ' + user1)
     #print('user2 (receiver): ' + user2)
     #print('sum: ' + str(sum))
@@ -822,6 +822,7 @@ def delete_user(collection_name, creator_id, user):
         except Exception as error:
             response = {"status": "error", "payload": "delete_user()-2: {}".format(error)}
             return response
+
     # 7. Final Ok response
     response = {"status": "ok",
                 "payload": "User {} successfully removed".format(user)}
@@ -837,6 +838,62 @@ def delete_user(collection_name, creator_id, user):
     send_report_to_email()
 '''
 
+def check_for_logs(req):
+    '''
+        Function gets JSON from a webhook, action "commonbalancebot-welcome", searches in DB in collection "clients"
+        for this user ID and channel and returns a message depending on result (1) new user without logs - suggest
+        to create a log; 2) existing user with 1 log - continue with it; 3) existing user with >1 logs - continue
+        with it but remind about other logs)
+    '''
+    # Response to be returned
+    response = {"status": None, "payload": None}
+
+    # 1. Get user ID and first name from request
+    user_id = req["originalRequest"]["data"]["message"]["from"]["id"]
+    user_first_name = req["originalRequest"]["data"]["message"]["from"]["first_name"]
+    channel = req["originalRequest"]["source"]
+
+    # 2. Check DB "CBB" / collection "clients" for such user_id and return created logs and last used log (if such)
+    client = MongoClient()
+    db = client.CBB
+    clients = db["clients"]
+
+    try:
+        criterion1 = {"user_id": user_id}
+        criterion2 = {"channel": channel}
+        output_filter = {"_id": 0, "logs": 1, "log_last_used": 1}
+        ourclient = clients.find_one({"$and": [criterion1, criterion2]}, output_filter)
+
+        if not ourclient: # new user, without any log
+            speech = "Hi, {}. I'm a CommonBalanceBot - here to help you with tracking common transactions with your friends.\nTo start you need a log. Should I create one for you?".format(user_first_name)
+        else: # existing user
+            if len(ourclient["logs"]) == 1: # with 1 log
+                speech = "Welcome back, {}!\nContinuing with your log \"{}\"...".format(user_first_name, ourclient["logs"][0])
+            elif len(ourclient["logs"]) == 2: # with 2 logs
+                log_last_used = ourclient["log_last_used"]
+                for log in ourclient["logs"]:
+                    if log != log_last_used:
+                        another_log = log
+                speech = "Welcome back, {}!\nContinuing with your log \"{}\". \nEnter \"open {}\" to switch to that another log".format(user_first_name, log_last_used, another_log)
+            else: # with >2 logs
+                log_last_used = ourclient["log_last_used"]
+                all_logs = ""
+                for log in ourclient["logs"]:
+                    if log != log_last_used:
+                        if all_logs != "":
+                            all_logs += ", "
+                        all_logs += log
+                speech = "Welcome back, {}!\nContinuing with your log \"{}\". To switch to another log ({}) please enter \"open <log name>\"".format(user_first_name, log_last_used, all_logs)
+
+    except Exception as error:
+        response = {"status": "error", "payload": "check_for_logs(): {}".format(error)}
+        return response
+
+    # 3. Final Ok response
+    response = {"status": "ok", "payload": speech}
+    return response
+
+
 ##################### TESTING ##############################################
 creator_id = myinput1["originalRequest"]["data"]["message"]["from"]["id"]
 users = ['Tim', 'Dan', 'Ann']
@@ -844,11 +901,12 @@ collection_name1 = "zeta-beaver-260218"
 collection_name = "kappa-bat-280218"
 
 #print(create_log(creator_id, users))
-print(add_payment(myinput1, collection_name))
+#print(add_payment(myinput1, collection_name))
 #print(delete_log(collection_name, creator_id))
 #print(add_user(collection_name, creator_id, "Ron"))
-print(update_balance(collection_name))
+#print(update_balance(collection_name))
 #print(balance(collection_name))
-print(statement(collection_name))
+#print(statement(collection_name))
 #print(delete_user(collection_name, creator_id, "Ron"))
 #print(statement(collection_name))
+print(check_for_logs(myinput2))
