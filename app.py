@@ -19,14 +19,26 @@ def webhook():
 
     # CommonBalanceBot - welcome
     if action == "commonbalancebot-welcome":
-        ourspeech = functions_CBB.check_for_logs(req)["payload"]
+        req_for_uid = functions_CBB.check_for_logs(req)["payload"]
+        ourspeech = functions_CBB.welcome_response(req_for_uid)["payload"]
+        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+
+    # CommonBalanceBot - create log
+    elif action == "commonbalancebot-create_log":
+        ourspeech = functions_CBB.create_log(req)["payload"]
+        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+
+    # CommonBalanceBot - delete log
+    elif action == "commonbalancebot-delete_log":
+        print(req)
+        ourspeech = functions_CBB.create_log(req)["payload"]
         res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - add new payment
     elif action == "commonbalancebot-add_payment":
         functions_CBB.add_payment(req)
         ourspeech = functions_CBB.balance("all")
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        res = functions_CBB.commonbalancebot_speech2(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - show balance
     elif action == "commonbalancebot-balance":
@@ -34,18 +46,18 @@ def webhook():
         if user == "":
             user = "all"
         ourspeech = functions_CBB.balance(user)
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        res = functions_CBB.commonbalancebot_speech2(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - show statement
     elif action == "commonbalancebot-statement":
         ourspeech = functions_CBB.statement()
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        res = functions_CBB.commonbalancebot_speech2(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - get json
     elif action == "commonbalancebot-getjson":
         ourspeech = 'hello'
         #print(str(req))
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        res = functions_CBB.commonbalancebot_speech2(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - taking user back to conversation
     elif action == "commonbalancebot-besidethepoint":

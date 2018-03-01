@@ -141,38 +141,95 @@ myinput2 = {
 }
 
 myinput3 = {
-  'transactions': [
-    {
-      'total_balance': {
-        'Tim': 0, 'Ann': 0, 'Dan': 0
+  'originalRequest': {
+    'source': 'telegram',
+    'data': {
+      'callback_query': {
+        'from': {
+          'last_name': 'D.',
+          'first_name': 'Iurii',
+          'language_code': 'ru-RU',
+          'is_bot': False,
+          'id': 178180819
+        },
+        'message': {
+          'date': 1519933138,
+          'entities': [
+            {
+              'type': 'bold',
+              'length': 10,
+              'offset': 0
+            }
+          ],
+          'from': {
+            'username': 'YetAnotherTestChatBot',
+            'id': 452144171,
+            'is_bot': True,
+            'first_name': 'TestTestTestBot'
+          },
+          'text': "Hi, Iurii!\nI'm a CommonBalanceBot - here to help you with tracking transactions with your friends.\nTo start you need a log. Should I create one for you?",
+          'message_id': 589,
+          'chat': {
+            'id': 178180819,
+            'last_name': 'D.',
+            'type': 'private',
+            'first_name': 'Iurii'
+          }
+        },
+        'id': '765280791023790620',
+        'data': 'Create log',
+        'chat_instance': '-8728995663043026465'
       },
-      'timestamp': 'today',
-      'amount': 0,
-      'who_paid': '',
-      'who_received': 'all',
-      'transaction_balance': {},
-      'transaction_number': 0
-    },
-    {
-      'total_balance': {
-        'Tim': -66.67, 'Ann': -66.67, 'Dan': 133.33
-      },
-      'timestamp': '2018-02-22T09:01:10.433Z',
-      'amount': 200,
-      'who_paid': 'Dan',
-      'who_received': 'all',
-      'transaction_balance': {
-        'Tim': -66.66666666666667, 'Ann': -66.66666666666667, 'Dan': 133.33333333333331
-      },
-      'transaction_number': 2
+      'update_id': 686221134
     }
-  ],
-  'users': ['Tim', 'Dan', 'Ann']
+  },
+  'timestamp': '2018-03-01T19:39:01.592Z',
+  'lang': 'en',
+  'sessionId': '82821da0-d1ef-4caf-8db4-f3602b989e8d',
+  'status': {
+    'errorType': 'success',
+    'code': 200,
+    'webhookTimedOut': False
+  },
+  'id': '91a324b3-403a-40a0-9aa4-b4a4c1d15de9',
+  'result': {
+    'actionIncomplete': False,
+    'source': 'agent',
+    'speech': '',
+    'action': 'commonbalancebot-create_log',
+    'resolvedQuery': 'Create log',
+    'fulfillment': {
+      'messages': [
+        {
+          'speech': '', 'type': 0
+        }
+      ],
+      'speech': ''
+    },
+    'metadata': {
+      'webhookUsed': 'true',
+      'webhookForSlotFillingUsed': 'false',
+      'intentId': 'ec5eb6ae-7785-44fb-9165-67d87d1c509c',
+      'intentName': 'create_log'
+    },
+    'parameters': {},
+    'score': 1.0,
+    'contexts': [
+      {
+        'name': 'cookie',
+        'lifespan': 19,
+        'parameters': {
+          'welcomed.original': '',
+          'welcomed': 'yes'
+        }
+      }
+    ]
+  }
 }
 
 myinput4 = {'transactions': [{'transaction_balance': {}, 'total_balance': {'Ann': 0, 'Tim': 0, 'Dan': 0}, 'who_paid': '', 'who_received': 'all', 'amount': 0, 'timestamp': 'start', 'transaction_number': 0}, {'transaction_balance': {'Ann': -179.33333333333334, 'Tim': 358.66666666666663, 'Dan': -179.33333333333334}, 'total_balance': {'Ann': -179.33, 'Tim': 358.67, 'Dan': -179.33}, 'who_paid': 'Tim', 'who_received': 'all', 'amount': 538.0, 'timestamp': '2018-02-23T10:24:59.404Z', 'transaction_number': 1}, {'transaction_balance': {'Ann': -166.66666666666666, 'Tim': -166.66666666666666, 'Dan': 333.33333333333337}, 'total_balance': {'Ann': -346.0, 'Tim': 192.0, 'Dan': 154.0}, 'who_paid': 'Dan', 'who_received': 'all', 'amount': 500.0, 'timestamp': '2018-02-23T10:25:13.811Z', 'transaction_number': 2}, {'transaction_balance': {'Ann': 200.0, 'Tim': -200.0, 'Dan': 0}, 'total_balance': {'Ann': -146.0, 'Tim': -8.0, 'Dan': 154.0}, 'who_paid': 'Ann', 'who_received': 'Tim', 'amount': 200.0, 'timestamp': '2018-02-23T10:25:33.219Z', 'transaction_number': 3}, {'transaction_balance': {'Ann': 538.0, 'Tim': -269.0, 'Dan': -269.0}, 'total_balance': {'Ann': 392.0, 'Tim': -277.0, 'Dan': -115.0}, 'who_paid': 'Ann', 'who_received': 'all', 'amount': 807.0, 'timestamp': '2018-02-23T10:25:50.724Z', 'transaction_number': 4}, {'transaction_balance': {'Ann': -277.0, 'Tim': 277.0, 'Dan': 0}, 'total_balance': {'Ann': 115.0, 'Tim': 0.0, 'Dan': -115.0}, 'who_paid': 'Tim', 'who_received': 'Ann', 'amount': 277.0, 'timestamp': '2018-02-23T20:07:13.708Z', 'transaction_number': 5}, {'total_balance': {'Ann': 0.0, 'Tim': 0.0, 'Dan': 0.0}, 'transaction_balance': {'Ann': -115.0, 'Tim': 0, 'Dan': 115.0}, 'amount': 115.0, 'who_paid': 'Dan', 'who_received': 'Ann', 'timestamp': '2018-02-23T20:07:24.209Z', 'transaction_number': 6}], 'users': ['Tim', 'Dan', 'Ann']}
 
-def commonbalancebot_speech(ourspeech, oursource, outputcontext):
+def commonbalancebot_speech2(ourspeech, oursource, outputcontext):
     '''
         Composes response for different platforms for CommonBalanceBot
     '''
@@ -197,60 +254,128 @@ def commonbalancebot_speech(ourspeech, oursource, outputcontext):
 
     return res
 
-def create_log(creator_id, users):
+def commonbalancebot_speech(ourspeech, oursource, outputcontext):
     '''
-        Function creates a collection in DB "CBB" under randomly generated name in format <greek letter>-<animal>-<today's date>
-        and inserts 2 documents:
-        1) document with log info and
-        2) document with log creation data - see below
+        Composes response for different platforms for CommonBalanceBot
+    '''
+    basic_txt_message = ourspeech["speech"]
+    rich_messages = ourspeech["rich_messages"]
+
+    res = {
+        'speech': basic_txt_message,
+        'displayText': basic_txt_message,
+        'source': oursource,
+
+        'messages': [message for message in rich_messages],
+        'contextOut': outputcontext
+    }
+    return res
+
+def create_log(req):
+    '''
+        Function gets JSON from webhook (user ID and 1st name are taken from there), and
+        1. Creates a collection in DB "CBB" under randomly generated name in format
+        <greek letter>-<animal>-<today's date>, and inserts 2 documents into this collection:
+        1.1. Document with log info and
+        1.2. Document with log creation data - see below
+        2. Checks collectin "clients" in DB "CBB" for a document with such user ID and either creates such or
+        appends new log_name
+
     '''
     # Response to be returned
     response = {"status": None, "payload": None}
 
-    # 1. Generate collection name
+    # 1. Get user ID (will be creator_id) and user 1st name from JSON
+    if "message" in req["originalRequest"]["data"]:
+        req_digg = req["originalRequest"]["data"]["message"]["from"]
+    else:
+        req_digg = req["originalRequest"]["data"]["callback_query"]["from"]
+    creator_id = req_digg["id"]
+    user_first_name = req_digg["first_name"]
+
+    # 2. Generate collection name
     first_part = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "kappa", "omicron", "sigma", "tau", "upsilon", "phi", "chi", "psi", "omega"]
     second_part = ["cat", "dog", "frog", "chicken", "rabbit", "wolf", "bear", "bat", "beaver", "bison", "pig", "horse", "cow", "monkey", "fox", "mouse", "goat", "lion", "puma", "tiger", "bat", "zebra", "seal"]
     todays_date = datetime.datetime.now().strftime("%d%m%y")
     collection_name = "{}-{}-{}".format(random.choice(first_part), random.choice(second_part), todays_date)
 
-    # 2. Create collection
+    # 3. Create collection
     try:
         client = MongoClient()
         db = client.CBB
         collection = db[collection_name]
-    except Exception as error:
-        response = {"status": "error", "payload": "Failed to create log"}
-        return response
 
-    # 3. Prepare documents
-    log_info = {
-        'log': 'info',
-        'log_status': 'active',
-        'creator_id': creator_id,
-        'log_name': collection_name,
-        'active_users': users,
-        'initial_balance': {}
-    }
-    for user in users:
-        log_info["initial_balance"].update({user: 0})
+        # 4. Prepare documents
+        log_info = {
+            'log': 'info',
+            'log_status': 'active',
+            'creator_id': creator_id,
+            'log_name': collection_name,
+            'active_users': [user_first_name],
+            'initial_balance': {user_first_name: 0}
+        }
 
-    create_log_action = {
-        # '_id': 0, = creation date, used for sorting
-        'creator_id': creator_id,
-        'action_type': 'create_log'
-    }
+        create_log_action = {
+            # '_id': 0, = creation date, used for sorting
+            'creator_id': creator_id,
+            'action_type': 'create_log'
+        }
 
-    # 4. Insert documents to collection
-    try:
+        # 5. Insert documents to collection
         log_info_id = collection.insert_one(log_info).inserted_id
         create_log_action_id = collection.insert_one(create_log_action).inserted_id
-    except Exception as error:
-        response = {"status": "error", "payload": error}
 
-    # 5. Final Ok response
-    response = {"status": "ok", "payload": {"collection_name": collection_name, "action_id": create_log_action_id}}
+        # 6. Check if such user is already in our "clients" collection
+        clients = db["clients"]
+        ourclient = clients.find_one({"user_id": creator_id})
+        if ourclient: # existing user
+            logs = ourclient["logs"]
+            logs.append(collection_name)
+            clients.update_one({"user_id": creator_id}, {'$set': {"logs": logs}})
+            clients.update_one({"user_id": creator_id}, {'$set': {"log_last_used": collection_name}})
+        else: # new user
+            newclient = {
+                "channel": "telegram",
+                "user_id": creator_id,
+                "first_name": user_first_name,
+                "logs": [
+                    collection_name
+                ],
+                "log_last_used": collection_name
+            }
+            client_insert_id = clients.insert_one(newclient).inserted_id
+
+    except Exception as error:
+        response = {"status": "error", "payload": "create_log(): {}".format(error)}
+        return response
+
+    # 7. Final Ok response
+    payload = {
+        "speech": "Log \"{}\" successfully created, but at the moment contains only 1 user - you ({}) ;) \nTo continue please add users".format(collection_name, user_first_name),
+        "rich_messages": [
+            {
+                "platform": "telegram",
+                "type": 1,
+                "title": "Log \"{}\" successfully created!".format(collection_name),
+                "subtitle": "But at the moment it contains only 1 user - you ({}) ;) \nTo continue please add users :)".format(user_first_name),
+                "buttons": [
+                    {
+                        "postback": "Add user",
+                        "text": "Add user"
+                    },
+                    {
+                        "postback": "Help",
+                        "text": "Help"
+                    }
+                ]
+            }
+        ]
+    }
+
+    response = {"status": "ok", "payload": payload}
     return response
 
+def delete_log(collection_name, creator_id):
 def delete_log(collection_name, creator_id):
     '''
         Function 'soft-deletes' common transactions log:
@@ -840,17 +965,19 @@ def delete_user(collection_name, creator_id, user):
 
 def check_for_logs(req):
     '''
-        Function gets JSON from a webhook, action "commonbalancebot-welcome", searches in DB in collection "clients"
-        for this user ID and channel and returns a message depending on result (1) new user without logs - suggest
-        to create a log; 2) existing user with 1 log - continue with it; 3) existing user with >1 logs - continue
-        with it but remind about other logs)
+        Function gets JSON from a webhook, searches in DB in collection "clients" for this user ID and channel and
+        returns document for that user (or None)
     '''
     # Response to be returned
     response = {"status": None, "payload": None}
 
     # 1. Get user ID and first name from request
-    user_id = req["originalRequest"]["data"]["message"]["from"]["id"]
-    user_first_name = req["originalRequest"]["data"]["message"]["from"]["first_name"]
+    if "message" in req["originalRequest"]["data"]:
+        req_digg = req["originalRequest"]["data"]["message"]["from"]
+    else:
+        req_digg = req["originalRequest"]["data"]["callback_query"]["from"]
+    user_id = req_digg["id"]
+    user_first_name = req_digg["first_name"]
     channel = req["originalRequest"]["source"]
 
     # 2. Check DB "CBB" / collection "clients" for such user_id and return created logs and last used log (if such)
@@ -864,38 +991,166 @@ def check_for_logs(req):
         output_filter = {"_id": 0, "logs": 1, "log_last_used": 1}
         ourclient = clients.find_one({"$and": [criterion1, criterion2]}, output_filter)
 
-        if not ourclient: # new user, without any log
-            speech = "Hi, {}. I'm a CommonBalanceBot - here to help you with tracking common transactions with your friends.\nTo start you need a log. Should I create one for you?".format(user_first_name)
-        else: # existing user
-            if len(ourclient["logs"]) == 1: # with 1 log
-                speech = "Welcome back, {}!\nContinuing with your log \"{}\"...".format(user_first_name, ourclient["logs"][0])
-            elif len(ourclient["logs"]) == 2: # with 2 logs
-                log_last_used = ourclient["log_last_used"]
-                for log in ourclient["logs"]:
-                    if log != log_last_used:
-                        another_log = log
-                speech = "Welcome back, {}!\nContinuing with your log \"{}\". \nEnter \"open {}\" to switch to that another log".format(user_first_name, log_last_used, another_log)
-            else: # with >2 logs
-                log_last_used = ourclient["log_last_used"]
-                all_logs = ""
-                for log in ourclient["logs"]:
-                    if log != log_last_used:
-                        if all_logs != "":
-                            all_logs += ", "
-                        all_logs += log
-                speech = "Welcome back, {}!\nContinuing with your log \"{}\". To switch to another log ({}) please enter \"open <log name>\"".format(user_first_name, log_last_used, all_logs)
-
     except Exception as error:
         response = {"status": "error", "payload": "check_for_logs(): {}".format(error)}
         return response
 
     # 3. Final Ok response
-    response = {"status": "ok", "payload": speech}
+    response = {"status": "ok", "payload": [ourclient, user_first_name]}
     return response
 
+def welcome_response(req_for_uid):
+    '''
+        Function gets results of request to DB "CBB" / collection "clients" for user_id and returns a message
+        depending on result:
+        1) new user without logs - suggest to create a log;
+        2) existing user with 1 log - continue with it;
+        3) existing user with >1 logs - continue with it but remind about other logs
+    '''
+    # Response to be returned
+    response = {"status": None, "payload": None}
+
+    ourclient = req_for_uid[0]
+    user_first_name = req_for_uid[1]
+
+    if not ourclient: # new user, without any log
+        payload = {
+            "speech": "Hi, {}. I'm a CommonBalanceBot - here to help you with tracking transactions with your friends.\nTo start you need a log. Should I create one for you?".format(
+                user_first_name),
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Hi, {}!".format(user_first_name),
+                    "subtitle": "I'm a CommonBalanceBot - here to help you with tracking transactions with your friends.\nTo start you need a log. Should I create one for you?",
+                    "buttons": [
+                        {
+                            "postback": "Create log",
+                            "text": "Create log"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+
+    else: # existing user
+        if len(ourclient["logs"]) == 1: # with 1 log
+            payload = {
+            "speech": "Welcome back, {}!\nContinuing with your log \"{}\"...".format(user_first_name, ourclient["logs"][0]),
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Welcome back, {}!".format(user_first_name),
+                    "subtitle": "Continuing with your log \"{}\".\nWhat should I do next?".format(ourclient["logs"][0]),
+                    "buttons": [
+                        {
+                            "postback": "Add payment",
+                            "text": "Add payment"
+                        },
+                        {
+                            "postback": "Balance",
+                            "text": "Balance"
+                        },
+                        {
+                            "postback": "Statement",
+                            "text": "Statement"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+
+        elif len(ourclient["logs"]) == 2: # with 2 logs
+            log_last_used = ourclient["log_last_used"]
+            for log in ourclient["logs"]:
+                if log != log_last_used:
+                    another_log = log
+                    payload = {
+                    "speech": "Welcome back, {}!\nContinuing with your log \"{}\". \nEnter \"open {}\" to switch to that another log".format(user_first_name, log_last_used, another_log),
+                    "rich_messages": [
+                        {
+                            "platform": "telegram",
+                            "type": 1,
+                            "title": "Welcome back, {}!".format(user_first_name),
+                            "subtitle": "Continuing with your log \"{}\".\nBy the way you also have a log \"{}\".\nWhat should I do next?".format(log_last_used, another_log),
+                            "buttons": [
+                                {
+                                    "postback": "Open log {}".format(another_log),
+                                    "text": "Open \"{}\"".format(another_log)
+                                },
+                                {
+                                    "postback": "Add payment",
+                                    "text": "Add payment"
+                                },
+                                {
+                                    "postback": "Balance",
+                                    "text": "Balance"
+                                },
+                                {
+                                    "postback": "Help",
+                                    "text": "Help"
+                                }
+                            ]
+                        }
+                    ]
+                }
+
+        else: # with >2 logs
+            log_last_used = ourclient["log_last_used"]
+            all_logs = ""
+            for log in ourclient["logs"]:
+                if log != log_last_used:
+                    if all_logs != "":
+                        all_logs += ", "
+                    all_logs += "\"{}\"".format(log)
+
+            payload = {
+                "speech": "Welcome back, {}!\nContinuing with your log \"{}\". To switch to another log ({}) please enter \"open <log name>\"".format(user_first_name, log_last_used, all_logs),
+                "rich_messages": [
+                    {
+                        "platform": "telegram",
+                        "type": 1,
+                        "title": "Welcome back, {}!".format(user_first_name),
+                        "subtitle": "Continuing with your log \"{}\".\nBy the way you have other logs: {}.\nWhat should I do next?".format(
+                            log_last_used, all_logs),
+                        "buttons": [
+                            {
+                                "postback": "Switch log",
+                                "text": "Switch log"
+                            },
+                            {
+                                "postback": "Add payment",
+                                "text": "Add payment"
+                            },
+                            {
+                                "postback": "Balance",
+                                "text": "Balance"
+                            },
+                            {
+                                "postback": "Help",
+                                "text": "Help"
+                            }
+                        ]
+                    }
+                ]
+            }
+
+    # 3. Final Ok response
+    response = {"status": "ok", "payload": payload}
+    return response
 
 ##################### TESTING ##############################################
-creator_id = myinput1["originalRequest"]["data"]["message"]["from"]["id"]
+#creator_id = myinput3["originalRequest"]["data"]["message"]#["chat"]["id"]
+#print(creator_id)
 users = ['Tim', 'Dan', 'Ann']
 collection_name1 = "zeta-beaver-260218"
 collection_name = "kappa-bat-280218"
@@ -909,4 +1164,4 @@ collection_name = "kappa-bat-280218"
 #print(statement(collection_name))
 #print(delete_user(collection_name, creator_id, "Ron"))
 #print(statement(collection_name))
-print(check_for_logs(myinput2))
+#print(check_for_logs(myinput2))

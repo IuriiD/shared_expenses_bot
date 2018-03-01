@@ -1,3 +1,93 @@
+
+{
+  'originalRequest': {
+    'source': 'telegram',
+    'data': {
+      'callback_query': {
+        'from': {
+          'last_name': 'D.',
+          'first_name': 'Iurii',
+          'language_code': 'ru-RU',
+          'is_bot': False,
+          'id': 178180819
+        },
+        'message': {
+          'date': 1519933138,
+          'entities': [
+            {
+              'type': 'bold',
+              'length': 10,
+              'offset': 0
+            }
+          ],
+          'from': {
+            'username': 'YetAnotherTestChatBot',
+            'id': 452144171,
+            'is_bot': True,
+            'first_name': 'TestTestTestBot'
+          },
+          'text': "Hi, Iurii!\nI'm a CommonBalanceBot - here to help you with tracking transactions with your friends.\nTo start you need a log. Should I create one for you?",
+          'message_id': 589,
+          'chat': {
+            'id': 178180819,
+            'last_name': 'D.',
+            'type': 'private',
+            'first_name': 'Iurii'
+          }
+        },
+        'id': '765280791023790620',
+        'data': 'Create log',
+        'chat_instance': '-8728995663043026465'
+      },
+      'update_id': 686221134
+    }
+  },
+  'timestamp': '2018-03-01T19:39:01.592Z',
+  'lang': 'en',
+  'sessionId': '82821da0-d1ef-4caf-8db4-f3602b989e8d',
+  'status': {
+    'errorType': 'success',
+    'code': 200,
+    'webhookTimedOut': False
+  },
+  'id': '91a324b3-403a-40a0-9aa4-b4a4c1d15de9',
+  'result': {
+    'actionIncomplete': False,
+    'source': 'agent',
+    'speech': '',
+    'action': 'commonbalancebot-create_log',
+    'resolvedQuery': 'Create log',
+    'fulfillment': {
+      'messages': [
+        {
+          'speech': '', 'type': 0
+        }
+      ],
+      'speech': ''
+    },
+    'metadata': {
+      'webhookUsed': 'true',
+      'webhookForSlotFillingUsed': 'false',
+      'intentId': 'ec5eb6ae-7785-44fb-9165-67d87d1c509c',
+      'intentName': 'create_log'
+    },
+    'parameters': {},
+    'score': 1.0,
+    'contexts': [
+      {
+        'name': 'cookie',
+        'lifespan': 19,
+        'parameters': {
+          'welcomed.original': '',
+          'welcomed': 'yes'
+        }
+      }
+    ]
+  }
+}
+
+
+
 {
   'transactions': [
     {
@@ -161,3 +251,36 @@
     },
     'source': 'telegram'
   }, 'result': {'metadata': {'webhookUsed': 'true', 'intentId': 'b0f482b9-2d3b-412a-8ad3-673ddfd1cf8c', 'webhookForSlotFillingUsed': 'false', 'intentName': 'test'}, 'source': 'agent', 'parameters': {}, 'speech': '', 'action': 'commonbalancebot-getjson', 'contexts': [{'name': 'generic', 'parameters': {'user.original': '', 'user': '', 'telegram_chat_id': '178180819'}, 'lifespan': 0}], 'score': 1.0, 'resolvedQuery': '000000', 'actionIncomplete': False, 'fulfillment': {'messages': [{'type': 0, 'speech': ''}], 'speech': ''}}, 'status': {'errorType': 'success', 'code': 200, 'webhookTimedOut': False}}
+
+
+
+
+                          payload = {
+                        "speech": "Welcome back, {}!\nContinuing with your log \"{}\". \nEnter \"open {}\" to switch to that another log".format(user_first_name, log_last_used, another_log),
+                        "rich_messages": [
+                            {
+                                "platform": "telegram",
+                                "type": 1,
+                                "title": "Welcome back, {}!".format(user_first_name),
+                                "subtitle": "Continuing with your log \"{}\"...\nBy the way you also have a log \"{}\".\nWhat should I do next?".format(log_last_used, another_log),
+                                "buttons": [
+                                    {
+                                        "postback": "Open log {}".format(another_log),
+                                        "text": "Switch to \"{}\"".format(another_log)
+                                    },
+                                    {
+                                        "postback": "Add payment",
+                                        "text": "Add payment"
+                                    },
+                                    {
+                                        "postback": "Show balance",
+                                        "text": "Show balance"
+                                    },
+                                    {
+                                        "postback": "Help",
+                                        "text": "Help"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
