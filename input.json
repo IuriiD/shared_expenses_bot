@@ -284,3 +284,169 @@
                             }
                         ]
                     }
+
+
+  ************
+
+
+{
+  'id': '5937af43-eda5-4ead-b770-2237f02efa8a',
+  'result': {
+    'source': 'agent',
+    'score': 1.0,
+    'contexts': [
+      {
+        'parameters': {
+          'number.original': '',
+          'number': '',
+          'log_to_delete': 'kappa-wolf-020318',
+          'log_to_delete.original': 'kappa-wolf-020318'
+        },
+        'lifespan': 1,
+        'name': 'delete_log-followup'
+      },
+      {
+        'parameters': {
+          'number.original': '',
+          'number': '',
+          'log_to_delete':
+          'kappa-wolf-020318',
+          'log_to_delete.original': 'kappa-wolf-020318'
+        },
+        'lifespan': 3,
+        'name': 'deletion_confirmed'
+      },
+      {
+        'parameters': {
+          'telegram_chat_id': '178180819',
+          'number.original': '',
+          'number': '',
+          'log_to_delete': 'kappa-wolf-020318',
+          'log_to_delete.original': 'kappa-wolf-020318'
+        },
+        'lifespan': 2,
+        'name': 'generic'
+      }
+    ],
+    'actionIncomplete': False,
+    'action': 'commonbalancebot-delete_log-do_it',
+    'fulfillment': {
+      'messages': [
+        {
+          'type': 0,
+          'platform': 'telegram',
+          'speech': 'DELETE IT!'
+        },
+        {
+          'type': 0,
+          'speech': 'DELETE IT!'
+        }
+      ],
+      'speech': 'DELETE IT!'
+    },
+    'resolvedQuery': 'kappa-wolf-020318',
+    'parameters': {
+      'number': '',
+      'log_to_delete': 'kappa-wolf-020318'
+    },
+    'metadata': {
+      'intentId': 'f4c8d97f-7be4-430a-add1-1386e1c7d198',
+      'intentName': 'delete_log-confirmed',
+      'webhookUsed': 'true',
+      'webhookForSlotFillingUsed': 'false'
+    },
+    'speech': ''
+  },
+
+
+  'timestamp': '2018-03-02T09:49:16.015Z',
+  'lang': 'en',
+  'sessionId': '38338ff1-03bf-40d1-b6f7-948e9b1d365f',
+  'originalRequest': {
+    'source': 'telegram',
+    'data': {
+      'message': {
+        'text': 'kappa-wolf-020318',
+        'from': {
+          'language_code': 'ru-RU',
+          'last_name': 'D.',
+          'is_bot': False,
+          'id': 178180819,
+          'first_name': 'Iurii'
+        },
+        'date': 1519984155,
+        'chat': {
+          'last_name': 'D.',
+          'type': 'private',
+          'id': 178180819,
+          'first_name': 'Iurii'
+        },
+        'message_id': 673
+      },
+      'update_id': 686221185
+    }
+  },
+  'status': {'code': 200, 'webhookTimedOut': False, 'errorType': 'success'}}
+
+def delete_log(req):
+    '''
+        Function 'soft-deletes' log with mutual transactions:
+        1) updates info in the 1st document in collection with log info
+        2) inserts a document with log deletion data - see below
+    '''
+    # Response to be returned
+    response = {"status": None, "payload": None}
+
+    # 1. Get user id and log name from req
+    creator_id = req_inside(req)["id"]
+
+    collection_name = req["result"]["resolvedQuery"]
+
+    # 2. Check if collection exists
+    client = MongoClient()
+    db = client.CBB
+    if collection_name in db.collection_names(): # If such collection exists in general
+        try: # If such collection exists for creator_id
+            log_info = db[collection_name].find_one({"log": "info"})
+            if log_info["creator_id"] != creator_id:
+                response = {"status": "error", "payload": "You don't have a log named '{}'".format(collection_name)}
+                return response
+        except Exception as error:
+            response = {"status": "error", "payload": "delete_log()-1: {}".format(error)}
+            return response
+
+        try: # If it exists but hasn't yet been deleted (inactivated)
+            log_info = db[collection_name].find_one({"log": "info"})
+            if log_info["log_status"] == "inactive":
+                response = {"status": "error", "payload": "Log already deleted"}
+                return response
+        except Exception as error:
+            response = {"status": "error", "payload": "delete_log()-2: {}".format(error)}
+            return response
+
+        try: # Try to delete (inactivate) it
+            db[collection_name].update_one({"log": "info"}, {'$set': {"log_status": "inactive"}})
+        except Exception as error:
+            response = {"status": "error", "payload": "delete_log()-3: {}".format(error)}
+            return response
+    else:
+        response = {"status": "error", "payload": "Log not found"}
+        return response
+
+    # 3. Prepare document to be inserted
+    delete_log_action = {
+        # '_id': 0, = creation date, used for sorting
+        'creator_id': creator_id,
+        'action_type': 'delete_log'
+    }
+
+    # 4. Insert document into DB
+    try:
+        delete_log_action_id =  db[collection_name].insert_one(delete_log_action).inserted_id
+    except Exception as error:
+        response = {"status": "error", "payload": error}
+        return response
+
+    # 5. Prepare final Ok response
+    response = {"status": "ok", "payload": "Log {} was deleted".format(collection_name)}
+    return response

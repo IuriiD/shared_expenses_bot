@@ -229,6 +229,18 @@ myinput3 = {
 
 myinput4 = {'transactions': [{'transaction_balance': {}, 'total_balance': {'Ann': 0, 'Tim': 0, 'Dan': 0}, 'who_paid': '', 'who_received': 'all', 'amount': 0, 'timestamp': 'start', 'transaction_number': 0}, {'transaction_balance': {'Ann': -179.33333333333334, 'Tim': 358.66666666666663, 'Dan': -179.33333333333334}, 'total_balance': {'Ann': -179.33, 'Tim': 358.67, 'Dan': -179.33}, 'who_paid': 'Tim', 'who_received': 'all', 'amount': 538.0, 'timestamp': '2018-02-23T10:24:59.404Z', 'transaction_number': 1}, {'transaction_balance': {'Ann': -166.66666666666666, 'Tim': -166.66666666666666, 'Dan': 333.33333333333337}, 'total_balance': {'Ann': -346.0, 'Tim': 192.0, 'Dan': 154.0}, 'who_paid': 'Dan', 'who_received': 'all', 'amount': 500.0, 'timestamp': '2018-02-23T10:25:13.811Z', 'transaction_number': 2}, {'transaction_balance': {'Ann': 200.0, 'Tim': -200.0, 'Dan': 0}, 'total_balance': {'Ann': -146.0, 'Tim': -8.0, 'Dan': 154.0}, 'who_paid': 'Ann', 'who_received': 'Tim', 'amount': 200.0, 'timestamp': '2018-02-23T10:25:33.219Z', 'transaction_number': 3}, {'transaction_balance': {'Ann': 538.0, 'Tim': -269.0, 'Dan': -269.0}, 'total_balance': {'Ann': 392.0, 'Tim': -277.0, 'Dan': -115.0}, 'who_paid': 'Ann', 'who_received': 'all', 'amount': 807.0, 'timestamp': '2018-02-23T10:25:50.724Z', 'transaction_number': 4}, {'transaction_balance': {'Ann': -277.0, 'Tim': 277.0, 'Dan': 0}, 'total_balance': {'Ann': 115.0, 'Tim': 0.0, 'Dan': -115.0}, 'who_paid': 'Tim', 'who_received': 'Ann', 'amount': 277.0, 'timestamp': '2018-02-23T20:07:13.708Z', 'transaction_number': 5}, {'total_balance': {'Ann': 0.0, 'Tim': 0.0, 'Dan': 0.0}, 'transaction_balance': {'Ann': -115.0, 'Tim': 0, 'Dan': 115.0}, 'amount': 115.0, 'who_paid': 'Dan', 'who_received': 'Ann', 'timestamp': '2018-02-23T20:07:24.209Z', 'transaction_number': 6}], 'users': ['Tim', 'Dan', 'Ann']}
 
+def req_inside(req):
+    '''
+        Function helps to get user id, user 1st name or other parameters from JSON got via webhook
+        Path depends on wheather user "tapped" an answer or entered it from keyboard
+        Returns correct path
+    '''
+    if "message" in req["originalRequest"]["data"]:
+        req_digg = req["originalRequest"]["data"]["message"]["from"]
+    else:
+        req_digg = req["originalRequest"]["data"]["callback_query"]["from"]
+    return req_digg
+
 def commonbalancebot_speech2(ourspeech, oursource, outputcontext):
     '''
         Composes response for different platforms for CommonBalanceBot
@@ -286,12 +298,8 @@ def create_log(req):
     response = {"status": None, "payload": None}
 
     # 1. Get user ID (will be creator_id) and user 1st name from JSON
-    if "message" in req["originalRequest"]["data"]:
-        req_digg = req["originalRequest"]["data"]["message"]["from"]
-    else:
-        req_digg = req["originalRequest"]["data"]["callback_query"]["from"]
-    creator_id = req_digg["id"]
-    user_first_name = req_digg["first_name"]
+    creator_id = req_inside(req)["id"]
+    user_first_name = req_inside(req)["first_name"]
 
     # 2. Generate collection name
     first_part = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "kappa", "omicron", "sigma", "tau", "upsilon", "phi", "chi", "psi", "omega"]
@@ -375,62 +383,95 @@ def create_log(req):
     response = {"status": "ok", "payload": payload}
     return response
 
-def delete_log(collection_name, creator_id):
-def delete_log(collection_name, creator_id):
+def delete_log(req):
     '''
-        Function 'soft-deletes' common transactions log:
-        1) updates info in the 1st document in collection with log info
+        Function 'soft-deletes' log with mutual transactions:
+        1) updates info in the 1st document in collection with log info ("log_status": "active" >> "inactive")
         2) inserts a document with log deletion data - see below
+        3) removes a log from the list of logs in collection "clients" >> document for user_id >> field "logs"
     '''
-    # 1. Response to be returned
+    # Response to be returned
     response = {"status": None, "payload": None}
 
+    # 1. Get user id and log name from req
+    creator_id = req_inside(req)["id"]
+    collection_name = req["result"]["resolvedQuery"]
+
     # 2. Check if collection exists
-    client = MongoClient()
-    db = client.CBB
-    if collection_name in db.collection_names(): # If such collection exists in general
-        try: # If such collection exists for creator_id
+    try:
+        client = MongoClient()
+        db = client.CBB
+        # If such collection exists in general
+        if collection_name in db.collection_names():
             log_info = db[collection_name].find_one({"log": "info"})
+
+            # If such collection exists for creator_id
             if log_info["creator_id"] != creator_id:
                 response = {"status": "error", "payload": "You don't have a log named '{}'".format(collection_name)}
                 return response
-        except Exception as error:
-            response = {"status": "error", "payload": "delete_log()-1: {}".format(error)}
-            return response
 
-        try: # If it exists but hasn't yet been deleted (inactivated)
-            log_info = db[collection_name].find_one({"log": "info"})
+            # If it exists and hasn't been deleted (inactivated)
             if log_info["log_status"] == "inactive":
                 response = {"status": "error", "payload": "Log already deleted"}
                 return response
-        except Exception as error:
-            response = {"status": "error", "payload": "delete_log()-2: {}".format(error)}
-            return response
 
-        try: # Try to delete (inactivate) it
+            # 3. Delete (inactivate) it
             db[collection_name].update_one({"log": "info"}, {'$set': {"log_status": "inactive"}})
-        except Exception as error:
-            response = {"status": "error", "payload": "delete_log()-3: {}".format(error)}
+
+            # 4. Update data in collection "clients" >> document for this client ID
+            client_info = db.clients.find_one({"user_id": creator_id})
+            # All client's logs
+            client_logs = client_info["logs"]
+            # Log last used
+            log_last_used = client_info["log_last_used"]
+            if collection_name in client_logs:
+                client_logs.remove(collection_name)
+                # Update log_last_used field
+                if len(client_logs) == 0:
+                    log_last_used = ""
+                # elif len(client_logs) == 1:
+                else:
+                    log_last_used = client_logs[0]
+                # In case we delete a log and have several active logs left - we need to find a log with the most
+                # recent document insertion
+                #else:
+############################### STOPPED HERE
+                '''
+                    for collection in db.collection_names():
+                        if db.collection
+
+
+                    filter1 = {"creator_id": creator_id}
+                    filter2 = {"log_status": "active"}
+                    output_filter = {"_id": 0, "total_balance": 1}
+                    payments = db[collection].find({"$and": [filter1, filter2]}, output_filter).sort(
+                        [('_id', -1)]).limit(1)
+                '''
+#################################
+                db.clients.update_one({"user_id": creator_id}, {'$set': {"logs": client_logs}})
+                db.clients.update_one({"user_id": creator_id}, {'$set': {"log_last_used": log_last_used}})
+        else:
+            response = {"status": "error", "payload": "Failed to delete log \"{}\". Log not found".format(collection_name)}
             return response
-    else:
-        response = {"status": "error", "payload": "Log not found"}
+    except Exception as error:
+        response = {"status": "error", "payload": "delete_log()-1: {}".format(error)}
         return response
 
-    # 3. Prepare document to be inserted
+    # 4. Prepare document to be inserted
     delete_log_action = {
         # '_id': 0, = creation date, used for sorting
         'creator_id': creator_id,
         'action_type': 'delete_log'
     }
 
-    # 4. Insert document into DB
+    # 5. Insert document into DB
     try:
         delete_log_action_id =  db[collection_name].insert_one(delete_log_action).inserted_id
     except Exception as error:
-        response = {"status": "error", "payload": error}
+        response = {"status": "error", "payload": "delete_log()-2: {}".format(error)}
         return response
 
-    # 5. Prepare final Ok response
+    # 6. Prepare final Ok response
     response = {"status": "ok", "payload": "Log {} was deleted".format(collection_name)}
     return response
 
@@ -972,12 +1013,9 @@ def check_for_logs(req):
     response = {"status": None, "payload": None}
 
     # 1. Get user ID and first name from request
-    if "message" in req["originalRequest"]["data"]:
-        req_digg = req["originalRequest"]["data"]["message"]["from"]
-    else:
-        req_digg = req["originalRequest"]["data"]["callback_query"]["from"]
-    user_id = req_digg["id"]
-    user_first_name = req_digg["first_name"]
+    user_id = req_inside(req)["id"]
+    user_first_name = req_inside(req)["first_name"]
+
     channel = req["originalRequest"]["source"]
 
     # 2. Check DB "CBB" / collection "clients" for such user_id and return created logs and last used log (if such)
@@ -1074,35 +1112,35 @@ def welcome_response(req_for_uid):
             for log in ourclient["logs"]:
                 if log != log_last_used:
                     another_log = log
-                    payload = {
-                    "speech": "Welcome back, {}!\nContinuing with your log \"{}\". \nEnter \"open {}\" to switch to that another log".format(user_first_name, log_last_used, another_log),
-                    "rich_messages": [
+            payload = {
+            "speech": "Welcome back, {}!\nContinuing with your log \"{}\". \nEnter \"open {}\" to switch to that another log".format(user_first_name, log_last_used, another_log),
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Welcome back, {}!".format(user_first_name),
+                    "subtitle": "Continuing with your log \"{}\".\nBy the way you also have a log \"{}\".\nWhat should I do next?".format(log_last_used, another_log),
+                    "buttons": [
                         {
-                            "platform": "telegram",
-                            "type": 1,
-                            "title": "Welcome back, {}!".format(user_first_name),
-                            "subtitle": "Continuing with your log \"{}\".\nBy the way you also have a log \"{}\".\nWhat should I do next?".format(log_last_used, another_log),
-                            "buttons": [
-                                {
-                                    "postback": "Open log {}".format(another_log),
-                                    "text": "Open \"{}\"".format(another_log)
-                                },
-                                {
-                                    "postback": "Add payment",
-                                    "text": "Add payment"
-                                },
-                                {
-                                    "postback": "Balance",
-                                    "text": "Balance"
-                                },
-                                {
-                                    "postback": "Help",
-                                    "text": "Help"
-                                }
-                            ]
+                            "postback": "Open log {}".format(another_log),
+                            "text": "Open \"{}\"".format(another_log)
+                        },
+                        {
+                            "postback": "Add payment",
+                            "text": "Add payment"
+                        },
+                        {
+                            "postback": "Balance",
+                            "text": "Balance"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
                         }
                     ]
                 }
+            ]
+        }
 
         else: # with >2 logs
             log_last_used = ourclient["log_last_used"]
@@ -1146,6 +1184,98 @@ def welcome_response(req_for_uid):
 
     # 3. Final Ok response
     response = {"status": "ok", "payload": payload}
+    return response
+
+def delete_log_response(req_for_uid, contexts):
+    '''
+        Function gets results of request to DB "CBB" / collection "clients" for user_id and returns a message
+        depending on result:
+        1) new user without logs - can't delete a log
+        2) existing user with 1 log - please confirm deletion of the log
+        3) existing user with >1 logs - choose a log to be deleted
+    '''
+    # Response to be returned
+    response = {"status": None, "payload": None}
+
+    ourclient = req_for_uid[0]
+    user_first_name = req_for_uid[1]
+
+    if not ourclient: # new user, without any log
+        payload = {
+            "speech": "Sorry but you don't have any logs yet. Would you like me to create one for you?",
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Sorry but you don't have any logs yet",
+                    "subtitle": "Would you like me to create one for you?",
+                    "buttons": [
+                        {
+                            "postback": "Create log",
+                            "text": "Create log"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+
+    else: # existing user
+        if len(ourclient["logs"]) == 1: # with 1 log
+            payload = {
+            "speech": "So, you decided to delete log \"{}\". Are you sure?\nTo delete this log please retype its name".format(ourclient["logs"][0]),
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 0,
+                    "speech": "So, you decided to delete log \"{}\". Are you sure?\nTo delete this log please retype its name".format(
+                        ourclient["logs"][0]),
+                }
+            ]
+            }
+
+            # Update contexts - add context "deletion_confirmed" (to distinguish between when user retypes a log name to confirm its deletion
+            # and enters a log name to select which log to delete from several existing
+            contexts.append(
+                {
+                    'parameters': {},
+                    'name': 'deletion_confirmed',
+                    'lifespan': 2
+                }
+            )
+
+        else: # with several logs
+            log_list = ""
+            buttons = []
+            for log in ourclient["logs"]:
+                if log_list != "":
+                    log_list += ", "
+                log_list + "\"{}\"".format(log)
+
+                buttons.append(
+                    {
+                        "postback": log,
+                        "text": log
+                    }
+                )
+
+            payload = {
+            "speech": "Please select which log you would like to delete ({})".format(log_list),
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Please select which log you would like to delete",
+                    "buttons": buttons
+                }
+            ]
+        }
+
+    # 3. Final Ok response
+    response = {"status": "ok", "payload": payload, "contexts": contexts}
     return response
 
 ##################### TESTING ##############################################

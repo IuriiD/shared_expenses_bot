@@ -30,9 +30,14 @@ def webhook():
 
     # CommonBalanceBot - delete log
     elif action == "commonbalancebot-delete_log":
-        print(req)
-        ourspeech = functions_CBB.create_log(req)["payload"]
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        req_for_uid = functions_CBB.check_for_logs(req)["payload"]
+        ourspeech = functions_CBB.delete_log_response(req_for_uid, req['result']['contexts'])
+        res = functions_CBB.commonbalancebot_speech(ourspeech["payload"], action, ourspeech["contexts"])
+
+    # CommonBalanceBot - delete log - deletion confirmed
+    elif action == "commonbalancebot-delete_log-do_it":
+        ourspeech = functions_CBB.delete_log(req)
+        res = functions_CBB.commonbalancebot_speech2(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - add new payment
     elif action == "commonbalancebot-add_payment":
