@@ -450,3 +450,12 @@ def delete_log(req):
     # 5. Prepare final Ok response
     response = {"status": "ok", "payload": "Log {} was deleted".format(collection_name)}
     return response
+
+
+{
+  'speech': 'Log "zeta-rabbit-030318" successfully created, but at the moment contains only 1 user - you (Iurii) ;) \nTo continue please add users',
+  'rich_messages': [
+    {
+      'type': 1, 'title': 'Log "zeta-rabbit-030318" successfully created!', 'platform': 'telegram', 'buttons': [{'postback': 'Add user', 'text': 'Add user'}, {'postback': 'Help', 'text': 'Help'}], 'subtitle': 'But at the moment it contains only 1 user - you (Iurii) ;) \nTo continue please add users :)'}
+  ]
+}

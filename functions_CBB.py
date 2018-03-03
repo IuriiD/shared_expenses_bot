@@ -270,8 +270,12 @@ def commonbalancebot_speech(ourspeech, oursource, outputcontext):
     '''
         Composes response for different platforms for CommonBalanceBot
     '''
+    print("ourspeech: {}".format(ourspeech))
     basic_txt_message = ourspeech["speech"]
-    rich_messages = ourspeech["rich_messages"]
+    if "rich_messages" in ourspeech:
+        rich_messages = ourspeech["rich_messages"]
+    else:
+        rich_messages = []
 
     res = {
         'speech': basic_txt_message,
@@ -404,15 +408,19 @@ def delete_log(req):
         # If such collection exists in general
         if collection_name in db.collection_names():
             log_info = db[collection_name].find_one({"log": "info"})
+            print("***********************")
+            print("log_info: {}".format(log_info))
 
             # If such collection exists for creator_id
             if log_info["creator_id"] != creator_id:
-                response = {"status": "error", "payload": "You don't have a log named '{}'".format(collection_name)}
+                response = {"status": "error", "payload": {"speech": "You don't have a log named '{}'".format(collection_name)}}
                 return response
 
             # If it exists and hasn't been deleted (inactivated)
             if log_info["log_status"] == "inactive":
-                response = {"status": "error", "payload": "Log already deleted"}
+                print()
+                print("log_info[\"log_status\"]: {}".format(log_info["log_status"]))
+                response = {"status": "error", "payload": {"speech": "Log already deleted"}}
                 return response
 
             # 3. Delete (inactivate) it
@@ -429,32 +437,17 @@ def delete_log(req):
                 # Update log_last_used field
                 if len(client_logs) == 0:
                     log_last_used = ""
-                # elif len(client_logs) == 1:
                 else:
-                    log_last_used = client_logs[0]
-                # In case we delete a log and have several active logs left - we need to find a log with the most
-                # recent document insertion
-                #else:
-############################### STOPPED HERE
-                '''
-                    for collection in db.collection_names():
-                        if db.collection
+                    # for now; later maybe log_last_used may be defined as the log with the most recent document
+                    log_last_used = client_logs[len(client_logs)-1]
 
-
-                    filter1 = {"creator_id": creator_id}
-                    filter2 = {"log_status": "active"}
-                    output_filter = {"_id": 0, "total_balance": 1}
-                    payments = db[collection].find({"$and": [filter1, filter2]}, output_filter).sort(
-                        [('_id', -1)]).limit(1)
-                '''
-#################################
                 db.clients.update_one({"user_id": creator_id}, {'$set': {"logs": client_logs}})
                 db.clients.update_one({"user_id": creator_id}, {'$set': {"log_last_used": log_last_used}})
         else:
-            response = {"status": "error", "payload": "Failed to delete log \"{}\". Log not found".format(collection_name)}
+            response = {"status": "error", "payload": {"speech": "Failed to delete log \"{}\". Log not found".format(collection_name)}}
             return response
     except Exception as error:
-        response = {"status": "error", "payload": "delete_log()-1: {}".format(error)}
+        response = {"status": "error", "payload": {"speech": "delete_log()-1: {}".format(error)}}
         return response
 
     # 4. Prepare document to be inserted
@@ -468,11 +461,100 @@ def delete_log(req):
     try:
         delete_log_action_id =  db[collection_name].insert_one(delete_log_action).inserted_id
     except Exception as error:
-        response = {"status": "error", "payload": "delete_log()-2: {}".format(error)}
+        response = {"status": "error", "payload": {"speech": "delete_log()-2: {}".format(error)}}
         return response
 
     # 6. Prepare final Ok response
-    response = {"status": "ok", "payload": "Log {} was deleted".format(collection_name)}
+    if len(client_logs) == 0:
+        payload = {
+            "speech": "Log {} was deleted. You have no logs left.\nTo continue please create a log".format(collection_name),
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Log {} was deleted".format(collection_name),
+                    "subtitle": "You have no logs left. To continue please create a log",
+                    "buttons": [
+                        {
+                            "postback": "Create log",
+                            "text": "Create log"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+    elif len(client_logs) == 1:
+        payload = {
+            "speech": "Log {} was deleted. You were switched to log {}.\nWhat should I do next?".format(collection_name, log_last_used),
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Log {} was deleted".format(collection_name),
+                    "subtitle": "You were switched to log {}.\nWhat should I do next?".format(log_last_used),
+                    "buttons": [
+                        {
+                            "postback": "Add payment",
+                            "text": "Add payment"
+                        },
+                        {
+                            "postback": "Balance",
+                            "text": "Balance"
+                        },
+                        {
+                            "postback": "Statement",
+                            "text": "Statement"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+    else:
+        other_logs = ""
+        for log in client_logs:
+            if log != log_last_used:
+                if other_logs != "":
+                    other_logs += ", "
+                other_logs += "\"{}\"".format(log)
+        payload = {
+            "speech": "Log {} was deleted. You were switched to log {}.\nYou also have logs {}. What should I do next?".format(collection_name, log_last_used, other_logs),
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Log {} was deleted".format(collection_name),
+                    "subtitle": "You were switched to log {}.\nWhat should I do next?".format(log_last_used),
+                    "buttons": [
+                        {
+                            "postback": "Switch log",
+                            "text": "Switch log"
+                        },
+                        {
+                            "postback": "Add payment",
+                            "text": "Add payment"
+                        },
+                        {
+                            "postback": "Balance",
+                            "text": "Balance"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+
+    response = {"status": "ok", "payload": payload}
     return response
 
 def add_payment(req, collection_name):
@@ -1000,7 +1082,7 @@ def delete_user(collection_name, creator_id, user):
     delete_payment()
     set_initial_balance()
     change_basic_currency()
-    set_exchange_rates() 
+    set_exchange_rates()
     send_report_to_email()
 '''
 
@@ -1076,7 +1158,31 @@ def welcome_response(req_for_uid):
         }
 
     else: # existing user
-        if len(ourclient["logs"]) == 1: # with 1 log
+        if len(ourclient["logs"]) == 0:  # with 0 logs
+            payload = {
+                "speech": "Welcome back, {}. To start you need a log. Should I create one for you?".format(
+                    user_first_name),
+                "rich_messages": [
+                    {
+                        "platform": "telegram",
+                        "type": 1,
+                        "title": "Welcome back, {}!".format(user_first_name),
+                        "subtitle": "To start you need a log. Should I create one for you?",
+                        "buttons": [
+                            {
+                                "postback": "Create log",
+                                "text": "Create log"
+                            },
+                            {
+                                "postback": "Help",
+                                "text": "Help"
+                            }
+                        ]
+                    }
+                ]
+            }
+
+        elif len(ourclient["logs"]) == 1: # with 1 log
             payload = {
             "speech": "Welcome back, {}!\nContinuing with your log \"{}\"...".format(user_first_name, ourclient["logs"][0]),
             "rich_messages": [
@@ -1200,14 +1306,14 @@ def delete_log_response(req_for_uid, contexts):
     ourclient = req_for_uid[0]
     user_first_name = req_for_uid[1]
 
-    if not ourclient: # new user, without any log
+    if not ourclient or (ourclient and len(ourclient["logs"]) == 0): # new user, without any log or existing user with 0 logs
         payload = {
-            "speech": "Sorry but you don't have any logs yet. Would you like me to create one for you?",
+            "speech": "Sorry but you don't have any logs. Would you like me to create one for you?",
             "rich_messages": [
                 {
                     "platform": "telegram",
                     "type": 1,
-                    "title": "Sorry but you don't have any logs yet",
+                    "title": "Sorry but you don't have any logs",
                     "subtitle": "Would you like me to create one for you?",
                     "buttons": [
                         {
@@ -1226,15 +1332,15 @@ def delete_log_response(req_for_uid, contexts):
     else: # existing user
         if len(ourclient["logs"]) == 1: # with 1 log
             payload = {
-            "speech": "So, you decided to delete log \"{}\". Are you sure?\nTo delete this log please retype its name".format(ourclient["logs"][0]),
-            "rich_messages": [
-                {
-                    "platform": "telegram",
-                    "type": 0,
-                    "speech": "So, you decided to delete log \"{}\". Are you sure?\nTo delete this log please retype its name".format(
-                        ourclient["logs"][0]),
-                }
-            ]
+                "speech": "So, you decided to delete log \"{}\". Are you sure?\nTo delete this log please retype its name".format(ourclient["logs"][0]),
+                "rich_messages": [
+                    {
+                        "platform": "telegram",
+                        "type": 0,
+                        "speech": "So, you decided to delete log \"{}\". Are you sure?\nTo delete this log please retype its name".format(
+                            ourclient["logs"][0]),
+                    }
+                ]
             }
 
             # Update contexts - add context "deletion_confirmed" (to distinguish between when user retypes a log name to confirm its deletion
@@ -1262,17 +1368,27 @@ def delete_log_response(req_for_uid, contexts):
                     }
                 )
 
-            payload = {
-            "speech": "Please select which log you would like to delete ({})".format(log_list),
-            "rich_messages": [
-                {
-                    "platform": "telegram",
-                    "type": 1,
-                    "title": "Please select which log you would like to delete",
-                    "buttons": buttons
+                payload = {
+                    "speech": "Please select which log you would like to delete ({})".format(log_list),
+                    "rich_messages": [
+                        {
+                            "platform": "telegram",
+                            "type": 1,
+                            "title": "Please select which log you would like to delete",
+                            "buttons": buttons
+                        }
+                    ]
                 }
-            ]
-        }
+
+                # Update contexts - add context "log2delete_chosen" (to distinguish between when user retypes a log name to confirm its deletion
+                # and enters a log name to select which log to delete from several existing
+                contexts.append(
+                    {
+                        'parameters': {},
+                        'name': 'log2delete_chosen',
+                        'lifespan': 2
+                    }
+                )
 
     # 3. Final Ok response
     response = {"status": "ok", "payload": payload, "contexts": contexts}
