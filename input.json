@@ -459,3 +459,88 @@ def delete_log(req):
       'type': 1, 'title': 'Log "zeta-rabbit-030318" successfully created!', 'platform': 'telegram', 'buttons': [{'postback': 'Add user', 'text': 'Add user'}, {'postback': 'Help', 'text': 'Help'}], 'subtitle': 'But at the moment it contains only 1 user - you (Iurii) ;) \nTo continue please add users :)'}
   ]
 }
+
+
+{
+  'result': {
+    'speech': '',
+    'metadata': {
+      'webhookForSlotFillingUsed': 'false',
+      'webhookUsed': 'true',
+      'intentId': 'fc1b540b-2357-4c28-b417-d98084ba1caf',
+      'intentName': 'add_user'
+    },
+    'parameters': {
+      'user': '',
+      'given-name': 'Dan'
+    },
+    'contexts': [
+      {
+        'name': 'generic',
+        'lifespan': 4,
+        'parameters': {
+          'user.original': '',
+          'given-name.original': 'Dan',
+          'user': '',
+          'telegram_chat_id': '178180819',
+          'given-name': 'Dan'
+        }
+      }
+    ],
+    'source': 'agent',
+    'action': 'commonbalancebot-add_user',
+    'fulfillment': {
+      'speech': '',
+      'messages': [
+        {
+          'speech': '',
+          'type': 0
+        }
+      ]
+    },
+    'resolvedQuery': 'add user Dan',
+    'score': 0.8999999761581421,
+    'actionIncomplete': False
+  },
+  'lang': 'en',
+  'id': '55b57e1e-31fa-4ba3-9abb-724745e8e2b5',
+  'timestamp': '2018-03-03T20:23:02.55Z',
+  'originalRequest': {
+    'data': {
+      'message': {
+        'from': {
+          'is_bot': False,
+          'last_name': 'D.',
+          'language_code': 'ru-RU',
+          'id': 178180819,
+          'first_name': 'Iurii'
+        },
+        'chat': {
+          'first_name': 'Iurii', 'last_name': 'D.', 'type': 'private', 'id': 178180819
+        },
+        'message_id': 899,
+        'text': 'add user Dan',
+        'date': 1520108582
+      },
+      'update_id': 686221332
+    },
+    'source': 'telegram'
+  },
+  'sessionId': '3275c3e9-610e-47ef-a705-d247ed099ea0',
+  'status': {
+    'code': 200,
+    'webhookTimedOut': False,
+    'errorType': 'success'
+  }
+}
+
+
+{
+  'timestamp': '2018-03-03T21:47:31.645Z',
+  'result': {
+    'action': 'commonbalancebot-add_user', 'metadata': {'webhookUsed': 'true', 'webhookForSlotFillingUsed': 'false', 'intentId': 'fc1b540b-2357-4c28-b417-d98084ba1caf', 'intentName': 'add_user'},
+    'parameters': {
+      'user': 'Dan'
+    }, 'fulfillment': {'speech': '', 'messages': [{'type': 0, 'speech': ''}]}, 'source': 'agent', 'actionIncomplete': False, 'contexts': [{'lifespan': 6, 'name': 'cookie', 'parameters': {'welcomed': 'yes', 'welcomed.original': '', 'user.original': 'Dan', 'user': 'Dan'}}, {'lifespan': 4, 'name': 'generic', 'parameters': {'telegram_chat_id': '178180819', 'user': 'Dan', 'user.original': 'Dan'}}], 'speech': '', 'score': 1.0, 'resolvedQuery': 'add user Dan'}, 'lang': 'en', 'originalRequest': {'source': 'telegram', 'data': {'update_id': 686221356, 'message': {'from': {'is_bot': False, 'first_name': 'Iurii', 'id': 178180819, 'language_code': 'ru-RU', 'last_name': 'D.'}, 'date': 1520113651, 'text': 'add user Dan', 'message_id': 931, 'chat': {'first_name': 'Iurii', 'type': 'private', 'id': 178180819, 'last_name': 'D.'}}}}, 'status': {'webhookTimedOut': False, 'code': 200, 'errorType': 'success'}, 'sessionId': '82f06b65-9c74-4ac2-b627-71465f633efb', 'id': 'edfea9aa-cd30-4e08-8da9-3adc66dbf03f'}
+
+

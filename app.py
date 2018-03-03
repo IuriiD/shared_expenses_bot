@@ -32,8 +32,6 @@ def webhook():
     elif action == "commonbalancebot-delete_log":
         req_for_uid = functions_CBB.check_for_logs(req)["payload"]
         ourspeech = functions_CBB.delete_log_response(req_for_uid, req['result']['contexts'])
-        print("HEY HEY HEY")
-        print(ourspeech["contexts"])
         res = functions_CBB.commonbalancebot_speech(ourspeech["payload"], action, ourspeech["contexts"])
 
     # CommonBalanceBot - delete log - deletion confirmed
@@ -41,14 +39,10 @@ def webhook():
         ourspeech = functions_CBB.delete_log(req)["payload"]
         res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
-    # CommonBalanceBot - confirm deletion of one log from several existing
-    elif action == "commonbalancebot-delete_log-confirm_chosen":
-        print("commonbalancebot-delete_log-confirm_chosen HERE!")
-        '''
-        req_for_uid = functions_CBB.check_for_logs(req)["payload"]
-        ourspeech = functions_CBB.delete_log_response(req_for_uid, req['result']['contexts'])
-        res = functions_CBB.commonbalancebot_speech(ourspeech["payload"], action, ourspeech["contexts"])
-        '''
+    # CommonBalanceBot - add new user
+    elif action == "commonbalancebot-add_user":
+        ourspeech = functions_CBB.add_user(req)["payload"]
+        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - add new payment
     elif action == "commonbalancebot-add_payment":

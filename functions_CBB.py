@@ -372,7 +372,7 @@ def create_log(req):
                 "subtitle": "But at the moment it contains only 1 user - you ({}) ;) \nTo continue please add users :)".format(user_first_name),
                 "buttons": [
                     {
-                        "postback": "Add user",
+                        "postback": "Add new user",
                         "text": "Add user"
                     },
                     {
@@ -957,9 +957,10 @@ def statement(collection_name):
     response = {"status": "ok", "payload": statement}
     return response
 
-def add_user(collection_name, creator_id, user):
+def add_user(req):
     '''
-        Function gets collection (log) name, creator_id and a new user's name, and
+        Function gets JSON from webhook and extracts user_id (which is further used to get last used log)
+        and the name of new user to add, and
         1) updates a list of active users in the 1st document (with "log": "info")
         2) inserts a new document with information on adding a new user
         3) returns a message about user addition
@@ -967,45 +968,114 @@ def add_user(collection_name, creator_id, user):
     # Response to be returned
     response = {"status": None, "payload": None}
 
-    # 1. Connect to our collection
+    print()
+    print("req: {}".format(req))
+    print()
+
+    # 1. Get input parameters (creator_id, collection_name, user)
+    creator_id = req_inside(req)["id"]
+    user = req["result"]["parameters"]["user"]
+
     client = MongoClient()
     db = client.CBB
-    if collection_name not in db.collection_names():
-        response = {"status": "error", "payload": "Log not found"}
+    collection_name = db.clients.find_one({"user_id": creator_id})
+
+    print()
+    print("creator_id: {}, user: {}, collection_name: {}".format(creator_id, user, collection_name))
+    print()
+
+    # user may be not registered yet or may have deleted all logs ("log_last_used" == "")
+    if not collection_name or collection_name["log_last_used"] == "":
+        payload = {
+            "speech": "Sorry but you don't have any logs. Would you like me to create one for you?",
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Sorry but you don't have any logs",
+                    "subtitle": "Would you like me to create one for you?",
+                    "buttons": [
+                        {
+                            "postback": "Create log",
+                            "text": "Create log"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+        response = {"status": "error", "payload": payload}
         return response
     else:
-        try:
-            # 2. Get our active users list and check if user is not already there
-            active_users = db[collection_name].find_one({"log": "info"})["active_users"]
-            if user in active_users:
-                response = {"status": "error", "payload": "Sorry, but we already have user {}".format(user)}
-                return response
-            else:
-                # 3. Update the list of active users
-                active_users.append(user)
-                db[collection_name].update_one({"log": "info"}, {'$set': {"active_users": active_users}})
+        collection_name = collection_name["log_last_used"]
 
-                # 4. Prepare document about adding new user
-                add_user_action = {
-                    # '_id': 0, = creation date, used for sorting
-                    'creator_id': creator_id,
-                    'new_user': user,
-                    'users_after_addition': active_users,
-                    'action_type': 'add_user'
-                }
-
-                # 5. Insert documents to collection
-                try:
-                    add_user_id = db[collection_name].insert_one(add_user_action).inserted_id
-                except Exception as error:
-                    response = {"status": "error", "payload": "add_user(): {}".format(error)}
-                    return response
-        except Exception as error:
-            response = {"status": "error", "payload": "add_user(): {}".format(error)}
+    try:
+        # 2. Get our active users list and check if user is not already there
+        active_users = db[collection_name].find_one({"log": "info"})["active_users"]
+        print("active_users: {}".format(active_users))
+        if user in active_users:
+            response = {"status": "error", "payload": {"speech": "Sorry, but we already have user {}".format(user)}}
             return response
+        else:
+            # 3. Update the list of active users
+            active_users.append(user)
+            db[collection_name].update_one({"log": "info"}, {'$set': {"active_users": active_users}})
+
+            # 4. Prepare a document about adding new user
+            add_user_action = {
+                # '_id': 0, = creation date, used for sorting
+                'creator_id': creator_id,
+                'new_user': user,
+                'users_after_addition': active_users,
+                'action_type': 'add_user'
+            }
+
+            print("add_user_action")
+            print(add_user_action)
+            print()
+
+            # 5. Insert documents to collection
+            add_user_id = db[collection_name].insert_one(add_user_action).inserted_id
+    except Exception as error:
+        response = {"status": "error", "payload": {"speech": "add_user(): {}".format(error)}}
+        return response
+
     # 5. Final Ok response
+    payload = {
+        "speech": "User {} successfully added. What\'s next?".format(user),
+        "rich_messages": [
+            {
+                "platform": "telegram",
+                "type": 1,
+                "title": "User {} successfully added".format(user),
+                "subtitle": "What\'s next?\nP.s. Enter \"add user X\" to add another user, X",
+                "buttons": [
+                    {
+                        "postback": "Add payment",
+                        "text": "Add payment"
+                    },
+                    {
+                        "postback": "Balance",
+                        "text": "Balance"
+                    },
+                    {
+                        "postback": "Statement",
+                        "text": "Statement"
+                    },
+                    {
+                        "postback": "Help",
+                        "text": "Help"
+                    }
+                ]
+            }
+        ]
+    }
+
     response = {"status": "ok",
-                "payload": "User {} successfully added".format(user)}
+                "payload": payload}
     return response
 
 def delete_user(collection_name, creator_id, user):
@@ -1184,34 +1254,34 @@ def welcome_response(req_for_uid):
 
         elif len(ourclient["logs"]) == 1: # with 1 log
             payload = {
-            "speech": "Welcome back, {}!\nContinuing with your log \"{}\"...".format(user_first_name, ourclient["logs"][0]),
-            "rich_messages": [
-                {
-                    "platform": "telegram",
-                    "type": 1,
-                    "title": "Welcome back, {}!".format(user_first_name),
-                    "subtitle": "Continuing with your log \"{}\".\nWhat should I do next?".format(ourclient["logs"][0]),
-                    "buttons": [
-                        {
-                            "postback": "Add payment",
-                            "text": "Add payment"
-                        },
-                        {
-                            "postback": "Balance",
-                            "text": "Balance"
-                        },
-                        {
-                            "postback": "Statement",
-                            "text": "Statement"
-                        },
-                        {
-                            "postback": "Help",
-                            "text": "Help"
-                        }
-                    ]
-                }
-            ]
-        }
+                "speech": "Welcome back, {}!\nContinuing with your log \"{}\"...".format(user_first_name, ourclient["logs"][0]),
+                "rich_messages": [
+                    {
+                        "platform": "telegram",
+                        "type": 1,
+                        "title": "Welcome back, {}!".format(user_first_name),
+                        "subtitle": "Continuing with your log \"{}\".\nWhat should I do next?".format(ourclient["logs"][0]),
+                        "buttons": [
+                            {
+                                "postback": "Add payment",
+                                "text": "Add payment"
+                            },
+                            {
+                                "postback": "Balance",
+                                "text": "Balance"
+                            },
+                            {
+                                "postback": "Statement",
+                                "text": "Statement"
+                            },
+                            {
+                                "postback": "Help",
+                                "text": "Help"
+                            }
+                        ]
+                    }
+                ]
+            }
 
         elif len(ourclient["logs"]) == 2: # with 2 logs
             log_last_used = ourclient["log_last_used"]
