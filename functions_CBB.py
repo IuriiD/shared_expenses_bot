@@ -383,7 +383,6 @@ def create_log(req):
             }
         ]
     }
-
     response = {"status": "ok", "payload": payload}
     return response
 
@@ -557,7 +556,7 @@ def delete_log(req):
     response = {"status": "ok", "payload": payload}
     return response
 
-def add_payment(req, collection_name):
+def add_payment(req):
     '''
         Function gets
         1) req - info about transaction from JSON via webhook (user1=payer, user2[optinally]=receiver of
@@ -575,30 +574,54 @@ def add_payment(req, collection_name):
     user2 = req.get('result').get('parameters').get('user2') # USER2 is receiver in direct transactions, otherwise USER1 pays for all (including himself), optional
     sum = req.get('result').get('parameters').get('sum') # {"amount": 100, "currency": "USD"}
     sum_basic_currency = req.get('result').get('parameters').get('sum_basic_currency')
-    creator_id = req.get("originalRequest").get("data").get("message").get("from").get("id") # request is supposed to be not from Dialogflows' web demo but from integration platform
+    creator_id = req_inside(req)["id"] # request is supposed to be not from Dialogflows' web demo but from integration platform
+    client = MongoClient()
+    db = client.CBB
+    collection = db.clients.find_one({"user_id": creator_id})
     #print('user1 (payer): ' + user1)
     #print('user2 (receiver): ' + user2)
     #print('sum: ' + str(sum))
     #print('sum_basic_currency: ' + str(sum_basic_currency))
 
     # 2. Check if such collection (log) exists, belongs to sender and if collection is not deleted (=="active")
-    client = MongoClient()
-    db = client.CBB
-    if collection_name in db.collection_names():
-        try: # If such collection exists for creator_id
-            log_info = db[collection_name].find_one({"log": "info"})
-            if log_info["creator_id"] != creator_id:
-                response = {"status": "error", "payload": "You don't have a log named '{}'".format(collection_name)}
-                return response
-
-            if log_info["log_status"] == "inactive":
-                response = {"status": "error", "payload": "Log has been deleted"}
-                return response
-        except Exception as error:
-            response = {"status": "error", "payload": "add_payment()-1: {}".format(error)}
-            return response
+    if not collection or collection["log_last_used"] == "":
+        payload = {
+            "speech": "Sorry but you don't have any logs. Would you like me to create one for you?",
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Sorry but you don't have any logs",
+                    "subtitle": "Would you like me to create one for you?",
+                    "buttons": [
+                        {
+                            "postback": "Create log",
+                            "text": "Create log"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+        response = {"status": "error", "payload": payload}
+        return response
     else:
-        response = {"status": "error", "payload": "Log not found"}
+        collection_name = collection["log_last_used"]
+
+    try: # If such collection exists for creator_id
+        log_info = db[collection_name].find_one({"log": "info"})
+        if log_info["creator_id"] != creator_id:
+            response = {"status": "error", "payload": {"speech": "You don't have a log named '{}'".format(collection_name)}}
+            return response
+
+        if log_info["log_status"] == "inactive":
+            response = {"status": "error", "payload": {"speech": "Log has been deleted"}}
+            return response
+    except Exception as error:
+        response = {"status": "error", "payload": {"speech": "add_payment()-1: {}".format(error)}}
         return response
 
     # 3. Check if user1 and/or user2 belong to active_users (the 1st document in collection, log_info)
@@ -612,14 +635,14 @@ def add_payment(req, collection_name):
             our_users += ", " + users[x]
     if user1 not in users and (user2 != "" and user2 not in users):
         response = {"status": "error",
-                    "payload": "Sorry, who are {} and {}? Can't find them in our user list ({})".format(user1, user2, our_users)}
+                    "payload": {"speech": "Sorry, who are {} and {}? Can't find them in our user list ({})".format(user1, user2, our_users)}}
         return response
     if user1 not in users:
-        response = {"status": "error", "payload": "Sorry, who is {}? Can't find him/her in our user list ({})".format(user1, our_users)}
+        response = {"status": "error", "payload": {"speech": "Sorry, who is {}? Can't find him/her in our user list ({})".format(user1, our_users)}}
         return response
     if user2 != "" and user2 not in users:
         response = {"status": "error",
-                    "payload": "Sorry, who is {}? Can't find him/her in our user list ({})".format(user2, our_users)}
+                    "payload": {"speech": "Sorry, who is {}? Can't find him/her in our user list ({})".format(user2, our_users)}}
         return response
 
     # 4. If currency != basic (for eg., UAH), convert to basic currency
@@ -650,9 +673,8 @@ def add_payment(req, collection_name):
         payer_gets = amount
         recipient_gets = amount * -1
 
-    #print('payer_gets: ' + str(payer_gets))
-    #print('recipient_gets: ' + str(recipient_gets))
-    #print("log: " + str(log))
+    print('payer_gets: ' + str(payer_gets))
+    print('recipient_gets: ' + str(recipient_gets))
 
     # 6. Prepare document to be inserted to DB
     add_payment_action = {
@@ -696,123 +718,172 @@ def add_payment(req, collection_name):
 
     return response
 
-def update_balance(collection_name):
+def update_balance(req):
     '''
         Function recalculates values in 'total_balance' for the whole log, taking into consideration
         added payments, changes in initial balance, deletion and modification of payments
     '''
     # Response to be returned
     response = {"status": None, "payload": None}
-
-    # 1. Connect to our collection
+    # 1. Get name of our collection/log
+    creator_id = req_inside(req)["id"] # request is supposed to be not from Dialogflows' web demo but from integration platform
     client = MongoClient()
     db = client.CBB
-    if collection_name not in db.collection_names():
-        response = {"status": "error", "payload": "Log not found"}
+    collection = db.clients.find_one({"user_id": creator_id})
+
+    if not collection or collection["log_last_used"] == "":
+        payload = {
+            "speech": "Sorry but you don't have any logs. Would you like me to create one for you?",
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Sorry but you don't have any logs",
+                    "subtitle": "Would you like me to create one for you?",
+                    "buttons": [
+                        {
+                            "postback": "Create log",
+                            "text": "Create log"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+        response = {"status": "error", "payload": payload}
         return response
     else:
-        try:
-            # 2. Get initial balance from the 1st document by "_id" (date)
-            initial_balance = db[collection_name].find_one({"log": "info"})[
-                "initial_balance"]  # dictionary - {"Tim": 0, "Dan": 0}
-            # print(initial_balance)
-            # print("")
+        collection_name = collection["log_last_used"]
 
-            # 3. Iterate through documents (actions) and get documents with "action_type" == "add_payment" and
-            # "deleted.status" == False
-            filter1 = {"action_type": "add_payment"}
-            filter2 = {"deleted.status": False}
-            payments = db[collection_name].find({"$and": [filter1, filter2]})
+    try:
+        # 2. Get initial balance from the 1st document by "_id" (date)
+        initial_balance = db[collection_name].find_one({"log": "info"})[
+            "initial_balance"]  # dictionary - {"Tim": 0, "Dan": 0}
 
-            payment_n = 0  # payments counter
+        # 3. Iterate through documents (actions) and get documents with "action_type" == "add_payment" and
+        # "deleted.status" == False
+        filter1 = {"action_type": "add_payment"}
+        filter2 = {"deleted.status": False}
+        payments = db[collection_name].find({"$and": [filter1, filter2]})
 
-            # Iterate through selected payments
-            for payment in payments:
-                action_id = payment["_id"]
+        payment_n = 0  # payments counter
 
-                # Get transaction balance (what each active user gets)
-                transaction_balance = payment["transaction_balance"]
-                total_balance = {}
+        # Iterate through selected payments
+        for payment in payments:
+            action_id = payment["_id"]
 
-                # Calculate current total balance for each user after this payment
-                for user, user_gets in transaction_balance.items():
-                    if user in initial_balance:  # for existing users
-                        total_balance.update({user: initial_balance[user] + user_gets})
-                        initial_balance[user] = total_balance[user]
-                    else:  # In case user was added
-                        total_balance[user] = user_gets
+            # Get transaction balance (what each active user gets)
+            transaction_balance = payment["transaction_balance"]
+            total_balance = {}
 
-                # If user was deleted and is not present in transaction_balance dict, delete it from
-                # initial_balance dict (which is being updated in cycle)
-                for user in initial_balance.keys():
-                    if user not in transaction_balance.keys():
-                        del initial_balance[user]
+            # Calculate current total balance for each user after this payment
+            for user, user_gets in transaction_balance.items():
+                if user in initial_balance:  # for existing users
+                    total_balance.update({user: initial_balance[user] + user_gets})
+                    initial_balance[user] = total_balance[user]
+                else:  # In case user was added
+                    total_balance[user] = user_gets
 
-                # Payment counter
-                payment_n += 1
+            # If user was deleted and is not present in transaction_balance dict, delete it from
+            # initial_balance dict (which is being updated in cycle)
+            for user in initial_balance.keys():
+                if user not in transaction_balance.keys():
+                    del initial_balance[user]
 
-                # 4. Update total_balance in corresponding document in DB
-                try:
-                    db[collection_name].update_one({"_id": action_id}, {'$set': {"total_balance": total_balance}})
-                    db[collection_name].update_one({"_id": action_id}, {'$set': {"payment_n": payment_n}})
-                except Exception as error:
-                    response = {"status": "error", "payload": "update_balance(): {}".format(error)}
-                    return response
-        except Exception as error:
-            response = {"status": "error", "payload": "update_balance(): {}".format(error)}
-            #print(str(response))
-            return response
+            # Payment counter
+            payment_n += 1
+
+            # 4. Update total_balance in corresponding document in DB
+            try:
+                db[collection_name].update_one({"_id": action_id}, {'$set': {"total_balance": total_balance}})
+                db[collection_name].update_one({"_id": action_id}, {'$set': {"payment_n": payment_n}})
+            except Exception as error:
+                response = {"status": "error", "payload": {"speech": "update_balance(): {}".format(error)}}
+                return response
+    except Exception as error:
+        response = {"status": "error", "payload": {"speech": "update_balance(): {}".format(error)}}
+        #print(str(response))
+        return response
 
     # 5. Prepare Ok response
-    response = {"status": "ok", "payload": "Total balance recalculated successfully"}
+    response = {"status": "ok", "payload": {"speech": "Total balance recalculated successfully"}}
     return response
 
-def balance(collection_name, user="all"):
+def balance(req, user="all"):
     '''
         Function gets
-        1) collection_name and
+        1) JSON from webhook to determine active log and
         2) specific user name (optional, in case no user is passed - balance is displayer for all active users),
         and returns balance for users/respective user
     '''
     # Response to be returned
     response = {"status": None, "payload": None}
 
-    # 1. Connect to our collection
+    # 1. Get name of our collection/log
+    creator_id = req_inside(req)["id"]
     client = MongoClient()
     db = client.CBB
-    if collection_name not in db.collection_names():
-        response = {"status": "error", "payload": "Log not found"}
+    collection = db.clients.find_one({"user_id": creator_id})
+
+    if not collection or collection["log_last_used"] == "":
+        payload = {
+            "speech": "Sorry but you don't have any logs. Would you like me to create one for you?",
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Sorry but you don't have any logs",
+                    "subtitle": "Would you like me to create one for you?",
+                    "buttons": [
+                        {
+                            "postback": "Create log",
+                            "text": "Create log"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+        response = {"status": "error", "payload": payload}
         return response
     else:
-        try:
-            # 2. Check if "user" == specific user (not "all") and if so - if he/she is among our active users
-            if user != "all":
-                active_users = db[collection_name].find_one({"log": "info"})["active_users"]
-                if user not in active_users:
-                    response = {"status": "error", "payload": "User {} not found".format(user)}
-                    return response
+        collection_name = collection["log_last_used"]
 
-            # 3. Get the last document of type add_payment which is not deleted and retrieve "total_balance" field
-            filter1 = {"action_type": "add_payment"}
-            filter2 = {"deleted.status": False}
-            output_filter = {"_id": 0, "total_balance": 1}
-            payments = db[collection_name].find({"$and": [filter1, filter2]}, output_filter).sort([('_id', -1)]).limit(1)
-            for payment in payments:
-                balance_data = payment["total_balance"]
+    try:
+        # 2. Check if "user" == specific user (not "all") and if so - if he/she is among our active users
+        if user != "all":
+            active_users = db[collection_name].find_one({"log": "info"})["active_users"]
+            if user not in active_users:
+                response = {"status": "error", "payload": {"speech": "User {} not found".format(user)}}
+                return response
 
-            # 4. Formulate response
-            if user == "all":
-                balance = "Current balance:"
-                for everyuser, everyuser_balance in balance_data.items():
-                    balance += "\n{}: {}".format(everyuser, "{0:.2f}".format(everyuser_balance))
-            else:
-                balance = "Current balance for {}: {}".format(user, "{0:.2f}".format(balance_data[user]))
-        except Exception as error:
-            response = {"status": "error", "payload": "balance(): {}".format(error)}
-            return response
+        # 3. Get the last document of type add_payment which is not deleted and retrieve "total_balance" field
+        filter1 = {"action_type": "add_payment"}
+        filter2 = {"deleted.status": False}
+        output_filter = {"_id": 0, "total_balance": 1}
+        payments = db[collection_name].find({"$and": [filter1, filter2]}, output_filter).sort([('_id', -1)]).limit(1)
+        for payment in payments:
+            balance_data = payment["total_balance"]
+
+        # 4. Formulate response
+        if user == "all":
+            balance = "Current balance:"
+            for everyuser, everyuser_balance in balance_data.items():
+                balance += "\n{}: {}".format(everyuser, "{0:.2f}".format(everyuser_balance))
+        else:
+            balance = "Current balance for {}: {}".format(user, "{0:.2f}".format(balance_data[user]))
+    except Exception as error:
+        response = {"status": "error", "payload": {"speech": "balance(): {}".format(error)}}
+        return response
 
     # 5. Prepare Ok response
-    response = {"status": "ok", "payload": balance}
+    response = {"status": "ok", "payload": {"speech": balance}}
     return response
 
 def statement(collection_name):
@@ -978,14 +1049,14 @@ def add_user(req):
 
     client = MongoClient()
     db = client.CBB
-    collection_name = db.clients.find_one({"user_id": creator_id})
+    collection = db.clients.find_one({"user_id": creator_id})
 
     print()
-    print("creator_id: {}, user: {}, collection_name: {}".format(creator_id, user, collection_name))
+    print("creator_id: {}, user: {}, collection_name: {}".format(creator_id, user, collection))
     print()
 
     # user may be not registered yet or may have deleted all logs ("log_last_used" == "")
-    if not collection_name or collection_name["log_last_used"] == "":
+    if not collection or collection["log_last_used"] == "":
         payload = {
             "speech": "Sorry but you don't have any logs. Would you like me to create one for you?",
             "rich_messages": [
@@ -1010,7 +1081,7 @@ def add_user(req):
         response = {"status": "error", "payload": payload}
         return response
     else:
-        collection_name = collection_name["log_last_used"]
+        collection_name = collection["log_last_used"]
 
     try:
         # 2. Get our active users list and check if user is not already there

@@ -47,8 +47,13 @@ def webhook():
     # CommonBalanceBot - add new payment
     elif action == "commonbalancebot-add_payment":
         functions_CBB.add_payment(req)
-        ourspeech = functions_CBB.balance("all")
-        res = functions_CBB.commonbalancebot_speech2(ourspeech, action, req['result']['contexts'])
+        functions_CBB.update_balance(req)
+        ourspeech = functions_CBB.balance(req)["payload"]
+        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+
+        #functions_CBB.add_payment(req)
+        #ourspeech = functions_CBB.balance("all")
+        #res = functions_CBB.commonbalancebot_speech2(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - show balance
     elif action == "commonbalancebot-balance":
