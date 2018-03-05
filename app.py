@@ -46,27 +46,27 @@ def webhook():
 
     # CommonBalanceBot - add new payment
     elif action == "commonbalancebot-add_payment":
-        functions_CBB.add_payment(req)
-        functions_CBB.update_balance(req)
-        ourspeech = functions_CBB.balance(req)["payload"]
+        result = functions_CBB.add_payment(req)
+        if result["status"] != "error":
+            functions_CBB.update_balance(req)
+            ourspeech = functions_CBB.balance(req)["payload"]
+        else:
+            ourspeech = result["payload"]
         res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
-
-        #functions_CBB.add_payment(req)
-        #ourspeech = functions_CBB.balance("all")
-        #res = functions_CBB.commonbalancebot_speech2(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - show balance
     elif action == "commonbalancebot-balance":
+        functions_CBB.update_balance(req)
         user = req.get('result').get('parameters').get('user')
         if user == "":
             user = "all"
-        ourspeech = functions_CBB.balance(user)
-        res = functions_CBB.commonbalancebot_speech2(ourspeech, action, req['result']['contexts'])
+        ourspeech = functions_CBB.balance(req, user)["payload"]
+        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - show statement
     elif action == "commonbalancebot-statement":
-        ourspeech = functions_CBB.statement()
-        res = functions_CBB.commonbalancebot_speech2(ourspeech, action, req['result']['contexts'])
+        ourspeech = functions_CBB.statement(req)["payload"]
+        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - get json
     elif action == "commonbalancebot-getjson":
@@ -76,7 +76,12 @@ def webhook():
 
     # CommonBalanceBot - taking user back to conversation
     elif action == "commonbalancebot-besidethepoint":
-        ourspeech = "What would you like to do next:\nAdd payment\nShow balance\nShow statement\nOther"
+        ourspeech = functions_CBB.besidethepoint()["payload"]
+        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+
+    # CommonBalanceBot - display FAQ
+    elif action == "commonbalancebot-faq":
+        ourspeech = functions_CBB.faq()["payload"]
         res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     else:

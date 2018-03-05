@@ -270,7 +270,7 @@ def commonbalancebot_speech(ourspeech, oursource, outputcontext):
     '''
         Composes response for different platforms for CommonBalanceBot
     '''
-    print("ourspeech: {}".format(ourspeech))
+    #print("ourspeech: {}".format(ourspeech))
     basic_txt_message = ourspeech["speech"]
     if "rich_messages" in ourspeech:
         rich_messages = ourspeech["rich_messages"]
@@ -578,10 +578,11 @@ def add_payment(req):
     client = MongoClient()
     db = client.CBB
     collection = db.clients.find_one({"user_id": creator_id})
-    #print('user1 (payer): ' + user1)
-    #print('user2 (receiver): ' + user2)
-    #print('sum: ' + str(sum))
-    #print('sum_basic_currency: ' + str(sum_basic_currency))
+
+    print('user1 (payer): ' + user1)
+    print('user2 (receiver): ' + user2)
+    print('sum: ' + str(sum))
+    print('sum_basic_currency: ' + str(sum_basic_currency))
 
     # 2. Check if such collection (log) exists, belongs to sender and if collection is not deleted (=="active")
     if not collection or collection["log_last_used"] == "":
@@ -610,6 +611,8 @@ def add_payment(req):
         return response
     else:
         collection_name = collection["log_last_used"]
+
+    print("collection_name: {}".format(collection_name))
 
     try: # If such collection exists for creator_id
         log_info = db[collection_name].find_one({"log": "info"})
@@ -713,6 +716,8 @@ def add_payment(req):
     # 7. Insert document into DB
     add_payment_action_id = db[collection_name].insert_one(add_payment_action).inserted_id
 
+    print("add_payment_action: {}".format(add_payment_action))
+
     # 8. Final Ok response
     response = {"status": "ok", "payload": add_payment_action_id}
 
@@ -725,6 +730,7 @@ def update_balance(req):
     '''
     # Response to be returned
     response = {"status": None, "payload": None}
+
     # 1. Get name of our collection/log
     creator_id = req_inside(req)["id"] # request is supposed to be not from Dialogflows' web demo but from integration platform
     client = MongoClient()
@@ -782,10 +788,11 @@ def update_balance(req):
             # Calculate current total balance for each user after this payment
             for user, user_gets in transaction_balance.items():
                 if user in initial_balance:  # for existing users
-                    total_balance.update({user: initial_balance[user] + user_gets})
+                    total_balance.update({user: (initial_balance[user] + user_gets)})
                     initial_balance[user] = total_balance[user]
                 else:  # In case user was added
                     total_balance[user] = user_gets
+                    initial_balance[user] = user_gets
 
             # If user was deleted and is not present in transaction_balance dict, delete it from
             # initial_balance dict (which is being updated in cycle)
@@ -803,6 +810,7 @@ def update_balance(req):
             except Exception as error:
                 response = {"status": "error", "payload": {"speech": "update_balance(): {}".format(error)}}
                 return response
+
     except Exception as error:
         response = {"status": "error", "payload": {"speech": "update_balance(): {}".format(error)}}
         #print(str(response))
@@ -873,20 +881,53 @@ def balance(req, user="all"):
 
         # 4. Formulate response
         if user == "all":
-            balance = "Current balance:"
+            balance = ""
             for everyuser, everyuser_balance in balance_data.items():
-                balance += "\n{}: {}".format(everyuser, "{0:.2f}".format(everyuser_balance))
+                if balance != "":
+                    balance += "\n"
+                balance += "{}: {}".format(everyuser, "{0:.2f}".format(everyuser_balance))
         else:
-            balance = "Current balance for {}: {}".format(user, "{0:.2f}".format(balance_data[user]))
+            balance = "{}: {}".format(user, "{0:.2f}".format(balance_data[user]))
+
+        payload = {
+            "speech": "Current balance: {}".format(balance),
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Current balance:",
+                    "subtitle": "{}\nWhat should I do next?".format(balance),
+                    "buttons": [
+                        {
+                            "postback": "Add payment",
+                            "text": "Add payment"
+                        },
+                        {
+                            "postback": "Balance",
+                            "text": "Balance"
+                        },
+                        {
+                            "postback": "Statement",
+                            "text": "Statement"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+
     except Exception as error:
-        response = {"status": "error", "payload": {"speech": "balance(): {}".format(error)}}
+        response = {"status": "error", "payload": payload}
         return response
 
     # 5. Prepare Ok response
-    response = {"status": "ok", "payload": {"speech": balance}}
+    response = {"status": "ok", "payload": payload}
     return response
 
-def statement(collection_name):
+def statement(req):
     '''
         Function a text statement with all transactions (log creation, payments, adding/deleting users;
         deleting/modifying payments are not displayed)
@@ -894,138 +935,194 @@ def statement(collection_name):
     # Response to be returned
     response = {"status": None, "payload": None}
     statement = ""
-    #payment_number = 0
 
-    # 1. Check if collection exists
+    # 1. Get name of our collection/log
+    creator_id = req_inside(req)["id"]
     client = MongoClient()
     db = client.CBB
-    if collection_name not in db.collection_names():
-        response = {"status": "error", "payload": "Log not found"}
+    collection = db.clients.find_one({"user_id": creator_id})
+
+    if not collection or collection["log_last_used"] == "":
+        payload = {
+            "speech": "Sorry but you don't have any logs. Would you like me to create one for you?",
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Sorry but you don't have any logs",
+                    "subtitle": "Would you like me to create one for you?",
+                    "buttons": [
+                        {
+                            "postback": "Create log",
+                            "text": "Create log"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+        response = {"status": "error", "payload": payload}
         return response
     else:
-        try:
-            # 2. Check if collection is active (hasn't been deleted)
-            log_info = db[collection_name].find_one({"log": "info"})
-            if log_info["log_status"] == "inactive":
-                response = {"status": "error", "payload": "Log has been deleted"}
-                return response
+        collection_name = collection["log_last_used"]
 
-            # 3. Get documents with "action_type" "log" (log creation info), 'add_payment', "add_user" and "delete_user"
-            filter = {
-                "$or": [
-                    {"log": "info"},
-                    {
-                        "$and": [
-                            {"action_type": "add_payment"},
-                            {"deleted.status": False}
-                        ]
-                    },
-                    {"action_type": "add_user"},
-                    {"action_type": "delete_user"}
-                ]
-            }
-            actions = db[collection_name].find(filter)
-            for action in actions:
-                # Log creation info
-                if "log" in action:
-                    # Date/time log was created
-                    timestamp = "{} {}".format(action["_id"].generation_time.date(), action["_id"].generation_time.time())
 
-                    # Log name
-                    log_name = action["log_name"]
-
-                    # Initial users and initial balance ("active" users field can be being updated)
-                    initial_users = ""
-                    initial_balance = ""
-                    for user, user_balance in action["initial_balance"].items():
-                        if initial_users != "":
-                            initial_users += ", "
-                            initial_balance += "\n"
-                        initial_users += user
-                        initial_balance += "{}: {}".format(user, "{0:.2f}".format(user_balance))
-
-                    # Compose block for "log" action
-                    log_statement = "Date/Time: {}\nLog \"{}\" was created\nUsers: {}\nBalance:\n{}\n".format(timestamp, log_name, initial_users, initial_balance)
-                    statement += log_statement
-
-                # add_payment
-                if "action_type" in action and action["action_type"] == "add_payment":
-                    # Payments counter
-                    payment_number = action["payment_n"]
-
-                    # Payment's date/time
-                    timestamp = "{} {}".format(action["_id"].generation_time.date(), action["_id"].generation_time.time())
-
-                    # Payer
-                    who_paid = action["who_paid"]
-
-                    # Beneficiary(-ies)
-                    if action["who_received"] == "all":
-                        who_received = "for all"
-                    else:
-                        who_received = "to {}".format(action["who_received"])
-
-                    # Payment sum
-                    amount_basic_currency = action["amount"]
-
-                    # Balance
-                    balance = ""
-                    for user, user_balance in action["total_balance"].items():
-                        if balance != "":
-                            balance += "\n"
-                        balance += "{}: {}".format(user, "{0:.2f}".format(user_balance))
-
-                    # Compose block for "add_payment" action
-                    payment_statement = "Date/Time: {}\nTransaction #: {}\n{} paid {} {} {}\nBalance: \n{}".format(timestamp, payment_number, who_paid, amount_basic_currency, BASIC_CURRENCY, who_received, balance)
-                    statement += "*"*27
-                    statement += payment_statement
-
-                # add_user
-                if "action_type" in action and action["action_type"] == "add_user":
-                    # Action's date/time
-                    timestamp = "{} {}".format(action["_id"].generation_time.date(), action["_id"].generation_time.time())
-
-                    # User added
-                    user_added = action["new_user"]
-
-                    # Users after addition
-                    active_users = ""
-                    for user in action["users_after_addition"]:
-                        if active_users != "":
-                            active_users += ", "
-                        active_users += user
-
-                        # Compose block for "add_user" action
-                    add_user_statement = "Date/Time: {}\nUser {} was added with balance 0\nActive users: {}".format(timestamp, user_added, active_users)
-                    statement += "*"*27
-                    statement += add_user_statement
-
-                # delete user
-                if "action_type" in action and action["action_type"] == "delete_user":
-                    # Action's date/time
-                    timestamp = "{} {}".format(action["_id"].generation_time.date(), action["_id"].generation_time.time())
-
-                    # User added
-                    deleted_user = action["deleted_user"]
-
-                    # Users after deletion
-                    active_users = ""
-                    for user in action["users_after_deletion"]:
-                        if active_users != "":
-                            active_users += ", "
-                        active_users += user
-
-                    # Compose block for "add_user" action
-                    add_user_statement = "Date/Time: {}\nUser {} was removed\nActive users: {}".format(timestamp, deleted_user, active_users)
-                    statement += "*"*27
-                    statement += add_user_statement
-
-        except Exception as error:
-            response = {"status": "error", "payload": "statement(): {}".format(error)}
+    try:
+        # 2. Check if collection is active (hasn't been deleted)
+        log_info = db[collection_name].find_one({"log": "info"})
+        if log_info["log_status"] == "inactive":
+            response = {"status": "error", "payload": {"speech": "Log has been deleted"}}
             return response
 
+        # 3. Get documents with "action_type" "log" (log creation info), 'add_payment', "add_user" and "delete_user"
+        filter = {
+            "$or": [
+                {"log": "info"},
+                {
+                    "$and": [
+                        {"action_type": "add_payment"},
+                        {"deleted.status": False}
+                    ]
+                },
+                {"action_type": "add_user"},
+                {"action_type": "delete_user"}
+            ]
+        }
+        actions = db[collection_name].find(filter)
+        for action in actions:
+            # Log creation info
+            if "log" in action:
+                # Date/time log was created
+                timestamp = "{} {}".format(action["_id"].generation_time.date(), action["_id"].generation_time.time())
+
+                # Log name
+                log_name = action["log_name"]
+
+                # Initial users and initial balance ("active" users field can be being updated)
+                initial_users = ""
+                initial_balance = ""
+                for user, user_balance in action["initial_balance"].items():
+                    if initial_users != "":
+                        initial_users += ", "
+                        initial_balance += "\n"
+                    initial_users += user
+                    initial_balance += "{}: {}".format(user, "{0:.2f}".format(user_balance))
+
+                # Compose block for "log" action
+                log_statement = "Date/Time: {}\nLog \"{}\" was created\nUsers: {}\nBalance:\n{}".format(timestamp, log_name, initial_users, initial_balance)
+                statement += log_statement
+
+            # add_payment
+            if "action_type" in action and action["action_type"] == "add_payment":
+                # Payments counter
+                payment_number = action["payment_n"]
+
+                # Payment's date/time
+                timestamp = "{} {}".format(action["_id"].generation_time.date(), action["_id"].generation_time.time())
+
+                # Payer
+                who_paid = action["who_paid"]
+
+                # Beneficiary(-ies)
+                if action["who_received"] == "all":
+                    who_received = "for all"
+                else:
+                    who_received = "to {}".format(action["who_received"])
+
+                # Payment sum
+                amount_basic_currency = action["amount"]
+
+                # Balance
+                balance = ""
+                for user, user_balance in action["total_balance"].items():
+                    if balance != "":
+                        balance += "\n"
+                    balance += "{}: {}".format(user, "{0:.2f}".format(user_balance))
+
+                # Compose block for "add_payment" action
+                payment_statement = "Date/Time: {}\nTransaction #: {}\n{} paid {} {} {}\nBalance: \n{}".format(timestamp, payment_number, who_paid, amount_basic_currency, BASIC_CURRENCY, who_received, balance)
+                statement += "\n{}\n".format("*"*27)
+                statement += payment_statement
+
+            # add_user
+            if "action_type" in action and action["action_type"] == "add_user":
+                # Action's date/time
+                timestamp = "{} {}".format(action["_id"].generation_time.date(), action["_id"].generation_time.time())
+
+                # User added
+                user_added = action["new_user"]
+
+                # Users after addition
+                active_users = ""
+                for user in action["users_after_addition"]:
+                    if active_users != "":
+                        active_users += ", "
+                    active_users += user
+
+                    # Compose block for "add_user" action
+                add_user_statement = "Date/Time: {}\nUser {} was added with balance 0\nActive users: {}".format(timestamp, user_added, active_users)
+                statement += "\n{}\n".format("*" * 27)
+                statement += add_user_statement
+
+            # delete user
+            if "action_type" in action and action["action_type"] == "delete_user":
+                # Action's date/time
+                timestamp = "{} {}".format(action["_id"].generation_time.date(), action["_id"].generation_time.time())
+
+                # User added
+                deleted_user = action["deleted_user"]
+
+                # Users after deletion
+                active_users = ""
+                for user in action["users_after_deletion"]:
+                    if active_users != "":
+                        active_users += ", "
+                    active_users += user
+
+                # Compose block for "add_user" action
+                add_user_statement = "Date/Time: {}\nUser {} was removed\nActive users: {}".format(timestamp, deleted_user, active_users)
+                statement += "\n{}\n".format("*" * 27)
+                statement += add_user_statement
+
+        payload = {
+            "speech": "Here's our statement:\n\n{}".format(statement),
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 0,
+                    "speech": "Here's our statement:\n\n{}".format(statement),
+                },
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "What should I do next?",
+                    "buttons": [
+                        {
+                            "postback": "Add payment",
+                            "text": "Add payment"
+                        },
+                        {
+                            "postback": "Balance",
+                            "text": "Balance"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+
+    except Exception as error:
+        response = {"status": "error", "payload": {"speech": "statement(): {}".format(error)}}
+        return response
+
     # 5. Prepare Ok response
-    response = {"status": "ok", "payload": statement}
+    response = {"status": "ok", "payload": payload}
     return response
 
 def add_user(req):
@@ -1535,6 +1632,133 @@ def delete_log_response(req_for_uid, contexts):
     response = {"status": "ok", "payload": payload, "contexts": contexts}
     return response
 
+def besidethepoint():
+    '''
+        Function which returns response for cases when user's input was not mapped to any other intent
+    '''
+    payload = {
+        "speech": "Sorry I didn't get that. What would you like me to do next?",
+        "rich_messages": [
+            {
+                "platform": "telegram",
+                "type": 1,
+                "title": "Sorry I didn't get that :(",
+                "subtitle": "What should I do next?",
+                "buttons": [
+                    {
+                        "postback": "Create log",
+                        "text": "Create log"
+                    },
+                    {
+                        "postback": "Add payment",
+                        "text": "Add payment"
+                    },
+                    {
+                        "postback": "Balance",
+                        "text": "Balance"
+                    },
+                    {
+                        "postback": "Help",
+                        "text": "Help"
+                    }
+                ]
+            }
+        ]
+    }
+
+    response = {"status": "ok", "payload": payload}
+    return response
+
+def faq():
+    '''
+        Function displays bot's commands and other info
+    '''
+    payload = {
+        "speech": "Sorry I didn't get that. What would you like me to do next?",
+        "rich_messages": [
+            {
+                "platform": "telegram",
+                "type": 0,
+                "speech": "\nHere's what SharedExpensesBot can do:\n",
+            },
+            {
+                "platform": "telegram",
+                "type": 1,
+                "title": "Actions with logs",
+                "buttons": [
+                    {
+                        "postback": "Create log",
+                        "text": "Create log"
+                    },
+                    {
+                        "postback": "Delete log",
+                        "text": "Delete log"
+                    }
+                ]
+            },
+            {
+                "platform": "telegram",
+                "type": 1,
+                "title": "Actions with users",
+                "buttons": [
+                    {
+                        "postback": "Add user",
+                        "text": "Add user"
+                    },
+                    {
+                        "postback": "Remove user",
+                        "text": "Remove user"
+                    }
+                ]
+            },
+            {
+                "platform": "telegram",
+                "type": 1,
+                "title": "Actions with payments",
+                "buttons": [
+                    {
+                        "postback": "Add payment",
+                        "text": "Add payment"
+                    },
+                    {
+                        "postback": "Modify payment",
+                        "text": "Modify payment"
+                    },
+                    {
+                        "postback": "Delete payment",
+                        "text": "Delete payment"
+                    }
+                ]
+            },
+            {
+                "platform": "telegram",
+                "type": 1,
+                "title": "Data presentation",
+                "buttons": [
+                    {
+                        "postback": "Balance",
+                        "text": "Balance"
+                    },
+                    {
+                        "postback": "Statement",
+                        "text": "Statement"
+                    },
+                    {
+                        "postback": "Send statement to email",
+                        "text": "Statement to email"
+                    }
+                ]
+            },
+            {
+                "platform": "telegram",
+                "type": 0,
+                "speech": "Thanks for using SharedExpensesBot!\nIurii Dziuban / iuriid.github.io",
+            },
+        ]
+    }
+
+    response = {"status": "ok", "payload": payload}
+    return response
 ##################### TESTING ##############################################
 #creator_id = myinput3["originalRequest"]["data"]["message"]#["chat"]["id"]
 #print(creator_id)
