@@ -865,8 +865,8 @@ def balance(req, user="all"):
 
     try:
         # 2. Check if "user" == specific user (not "all") and if so - if he/she is among our active users
+        active_users = db[collection_name].find_one({"log": "info"})["active_users"]
         if user != "all":
-            active_users = db[collection_name].find_one({"log": "info"})["active_users"]
             if user not in active_users:
                 response = {"status": "error", "payload": {"speech": "User {} not found".format(user)}}
                 return response
@@ -876,8 +876,19 @@ def balance(req, user="all"):
         filter2 = {"deleted.status": False}
         output_filter = {"_id": 0, "total_balance": 1}
         payments = db[collection_name].find({"$and": [filter1, filter2]}, output_filter).sort([('_id', -1)]).limit(1)
-        for payment in payments:
-            balance_data = payment["total_balance"]
+        # if no payments have been added yet
+        if payments.count() == 0:
+            # if we don't have payments yet then:
+            # 1) there might be only 1 user (log creator) with initial balance in the 1st document
+            # 2) another user(-s) may have been added but they will have their 1st total_balance only after the 1st payment
+            # For now if no payments exist yet, let's take active_users from the 1st doc and set their balance to 0
+            balance_data = {}
+            for active_user in active_users:
+                balance_data[active_user] = 0
+            print("balance_data: {}".format(balance_data))
+        else:
+            for payment in payments:
+                balance_data = payment["total_balance"]
 
         # 4. Formulate response
         if user == "all":
@@ -920,7 +931,7 @@ def balance(req, user="all"):
         }
 
     except Exception as error:
-        response = {"status": "error", "payload": payload}
+        response = {"status": "error", "payload": {"speech": "balance(): {}".format(error)}}
         return response
 
     # 5. Prepare Ok response
@@ -1679,7 +1690,7 @@ def faq():
             {
                 "platform": "telegram",
                 "type": 0,
-                "speech": "\nHere's what SharedExpensesBot can do:\n",
+                "speech": "\nSharedExpensesBot was created to help with tracking shared expenses for a group of people.\nHere's what it can do:\n",
             },
             {
                 "platform": "telegram",
