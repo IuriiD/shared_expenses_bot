@@ -648,7 +648,35 @@ def add_payment(req):
                     "payload": {"speech": "Sorry, who is {}? Can't find him/her in our user list ({})".format(user2, our_users)}}
         return response
 
-    # 4. If currency != basic (for eg., UAH), convert to basic currency
+    # 4. Check if user1 is not the only user (other users hasn't been added yet)
+    if len(users) == 1:
+        payload = {
+            "speech": "Sorry but you can't add payments yet because at the moment your log \"{}\" contains only 1 user - you ;) \nTo continue please add users".format(
+                collection_name),
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Please add users",
+                    "subtitle": "Sorry but you can't add payments yet because at the moment your log \"{}\" contains only 1 user - you ;)".format(collection_name),
+                    "buttons": [
+                        {
+                            "postback": "Add new user",
+                            "text": "Add user"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+        response = {"status": "error", "payload": payload}
+        return response
+
+
+    # 5. If currency != basic (for eg., UAH), convert to basic currency
     if sum == "":
         amount = float(sum_basic_currency)
     else:
@@ -661,7 +689,7 @@ def add_payment(req):
 
     print('sum_converted: ' + str(amount))
 
-    # 5. Calculate what users get in this transaction
+    # 6. Calculate what users get in this transaction
     # If user2 == empty, then user1 (payer) pays for all, else user1 pays directly to user2, other users' (if such) balance remains unchanged
     if user2 == "": # means that user1 paid for all = he gets his sum - sum/users_quantity, for eg. if 2 users and user1 paid $50, his balance will be +25$
         who_received = "all"
@@ -679,7 +707,7 @@ def add_payment(req):
     print('payer_gets: ' + str(payer_gets))
     print('recipient_gets: ' + str(recipient_gets))
 
-    # 6. Prepare document to be inserted to DB
+    # 7. Prepare document to be inserted to DB
     add_payment_action = {
         # '_id': 0, = creation date, used for sorting
         'creator_id': creator_id,
@@ -713,12 +741,12 @@ def add_payment(req):
         else: # calculate what payer looses
             add_payment_action["transaction_balance"].update({user: payer_gets})
 
-    # 7. Insert document into DB
+    # 8. Insert document into DB
     add_payment_action_id = db[collection_name].insert_one(add_payment_action).inserted_id
 
     print("add_payment_action: {}".format(add_payment_action))
 
-    # 8. Final Ok response
+    # 9. Final Ok response
     response = {"status": "ok", "payload": add_payment_action_id}
 
     return response
@@ -887,8 +915,34 @@ def balance(req, user="all"):
                 balance_data[active_user] = 0
             print("balance_data: {}".format(balance_data))
         else:
-            for payment in payments:
+            for payment in payments: # 1 cycle only
                 balance_data = payment["total_balance"]
+
+        # But another variant is also possible when user who participated in payments was removed (with balance 0),
+        # so we needn't display his zero balance any more
+        for another_user in list(balance_data):
+            if another_user not in active_users:
+                del balance_data[another_user]
+        '''
+        interim_balance_data = balance_data
+        print("interim_balance_data: {}".format(interim_balance_data))
+        print("balance_data: {}".format(balance_data))
+        for another_user in interim_balance_data.keys():
+            print("another_user: {}".format(another_user))
+            print("active_users: {}".format(active_users))
+            print("balance_data1: {}".format(balance_data))
+            if another_user not in active_users:
+                del balance_data[another_user]
+                print("balance_data2: {}".format(balance_data))
+        '''
+
+        # The variant when balance is fetched after new user was added (which will be absent in the last payment document)
+        for my_user in active_users:
+            if my_user not in balance_data.keys():
+                balance_data[my_user] = float(0)
+
+        print("BALANCE DATA 1982")
+        print("balance_data: {}".format(balance_data))
 
         # 4. Formulate response
         if user == "all":
@@ -1257,79 +1311,175 @@ def add_user(req):
                 "payload": payload}
     return response
 
-def delete_user(collection_name, creator_id, user):
+def delete_user(req):
     '''
-        Function gets collection (log) name, creator_id and a user name to be deleted, and
+        Function gets JSON from webhook and extracts user_id (which is further used to get last used log)
+        and the name of user to be removed, and
         1) updates a list of active users in the 1st document (with "log": "info")
         2) inserts a new document with information on deleting a user
         3) returns a message about user deletion
     '''
+
     # Response to be returned
     response = {"status": None, "payload": None}
 
-    # 1. Connect to our collection
+    # 1. Get input parameters (creator_id, collection_name, user to be deleted)
+    creator_id = req_inside(req)["id"]
+    user = req["result"]["parameters"]["user"]
+
     client = MongoClient()
     db = client.CBB
-    if collection_name not in db.collection_names():
-        response = {"status": "error", "payload": "Log not found"}
+    collection = db.clients.find_one({"user_id": creator_id})
+
+    # 2. Check if log exists
+    if not collection or collection["log_last_used"] == "":
+        payload = {
+            "speech": "Sorry but you don't have any logs. Would you like me to create one for you?",
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Sorry but you don't have any logs",
+                    "subtitle": "Would you like me to create one for you?",
+                    "buttons": [
+                        {
+                            "postback": "Create log",
+                            "text": "Create log"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+        response = {"status": "error", "payload": payload}
         return response
     else:
-        try:
-            # 2. Get our active users list and check if user is not already there
-            active_users = db[collection_name].find_one({"log": "info"})["active_users"]
-            if user not in active_users:
-                response = {"status": "error", "payload": "Sorry, but I can't find such user"}
-                return response
-            else:
-                # 3. Only users with 0 balance can be removed
-                filter1 = {"action_type": "add_payment"}
-                filter2 = {"deleted.status": False}
-                output_filter = {"_id": 0, "total_balance": 1}
-                payments = db[collection_name].find({"$and": [filter1, filter2]}, output_filter).sort(
-                    [('_id', -1)]).limit(1)
-                for payment in payments:
-                    balance_data = payment["total_balance"]
-                if user in balance_data:
-                    deleted_user_balance = balance_data[user]
-                else:
-                    deleted_user_balance = 0
-                if deleted_user_balance != 0:
-                    response = {"status": "error", "payload": "Sorry, only users with 0 (zero) balance can be removed"}
-                    return response
+        collection_name = collection["log_last_used"]
 
-                # 4. Update the list of active users
-                active_users.remove(user)
-                db[collection_name].update_one({"log": "info"}, {'$set': {"active_users": active_users}})
+    # 3. Check if user is not trying to delete him/herself (which is not allowed)
+    if user == creator_id:
+        response = {"status": "error", "payload": {"speech": "Sorry, but you can't delete yourself (you are a log owner)"}}
+        return response
 
-                # 5. Prepare document about adding new user
-                delete_user_action = {
-                    # '_id': 0, = creation date, used for sorting
-                    'creator_id': creator_id,
-                    'deleted_user': user,
-                    'users_after_deletion': active_users,
-                    'action_type': 'delete_user'
-                }
-
-                # 6. Insert documents to collection
-                try:
-                    delete_user_id = db[collection_name].insert_one(delete_user_action).inserted_id
-                except Exception as error:
-                    response = {"status": "error", "payload": "delete_user()-1: {}".format(error)}
-                    return response
-        except Exception as error:
-            response = {"status": "error", "payload": "delete_user()-2: {}".format(error)}
+    try:
+        # 4. Get our active users list and check if user to be deleted is present there
+        active_users = db[collection_name].find_one({"log": "info"})["active_users"]
+        print("active_users: {}".format(active_users))
+        if user not in active_users:
+            response = {"status": "error", "payload": {"speech": "Sorry, but I can't find user {}".format(user)}}
             return response
+        else:
+            # 5. Only users with 0 balance can be removed
+            filter1 = {"action_type": "add_payment"}
+            filter2 = {"deleted.status": False}
+            output_filter = {"_id": 0, "total_balance": 1}
+            payments = db[collection_name].find({"$and": [filter1, filter2]}, output_filter).sort(
+                [('_id', -1)]).limit(1)
 
-    # 7. Final Ok response
+            # If no last payment was found (no payments have been added yet)
+            #  then all users are supposed to have 0 balance which is Ok
+            if payments.count() == 0:
+                balance_data = {}
+                for active_user in active_users:
+                    balance_data[active_user] = 0
+                deleted_user_balance = balance_data[user]
+                print("balance_data: {}".format(balance_data))
+            else:
+                # Get last total balance
+                for payment in payments: # executes only once
+                    balance_data = payment["total_balance"]
+                    deleted_user_balance = balance_data[user]
+
+            if deleted_user_balance != 0:
+                response = {"status": "error", "payload": {"speech": "Sorry but only users with 0 (zero) balance can be removed"}}
+                return response
+
+            # 6. Update the list of active users
+            active_users.remove(user)
+            users_left = ""
+            for user_left in active_users:
+                if users_left != "":
+                    users_left += ", "
+                users_left += user_left
+
+            db[collection_name].update_one({"log": "info"}, {'$set': {"active_users": active_users}})
+
+            # 7. Prepare document about adding new user
+            delete_user_action = {
+                # '_id': 0, = creation date, used for sorting
+                'creator_id': creator_id,
+                'deleted_user': user,
+                'users_after_deletion': active_users,
+                'action_type': 'delete_user'
+            }
+
+            # 8. Insert documents to collection
+            delete_user_id = db[collection_name].insert_one(delete_user_action).inserted_id
+    except Exception as error:
+        response = {"status": "error", "payload": "delete_user(): {}".format(error)}
+        return response
+
+    # 9. Final Ok response
+    # Buttons in card should correspond to how many users are left: if only 1 then "add payment" button is not good
+    buttons = []
+    if len(active_users) == 1:
+        buttons.append(
+            {
+                "postback": "Add new user",
+                "text": "Add user"
+            }
+        )
+    else:
+        buttons.append(
+            {
+                "postback": "Add payment",
+                "text": "Add payment"
+            }
+        )
+
+    buttons.extend(
+        (
+            {
+                "postback": "Balance",
+                "text": "Balance"
+            },
+            {
+                "postback": "Statement",
+                "text": "Statement"
+            },
+            {
+                "postback": "Help",
+                "text": "Help"
+            }
+        )
+    )
+
+    payload = {
+        "speech": "User {} successfully removed. Users left: {}. What\'s next?".format(user, users_left),
+        "rich_messages": [
+            {
+                "platform": "telegram",
+                "type": 1,
+                "title": "User {} successfully removed".format(user),
+                "subtitle": "Users left: {}. What\'s next?".format(users_left),
+                "buttons": buttons
+            }
+        ]
+    }
+
     response = {"status": "ok",
-                "payload": "User {} successfully removed".format(user)}
+                "payload": payload}
+
     return response
 
 '''
     Functions left to create:
     edit_payment()
     delete_payment()
-    set_initial_balance()
+    set_initial_balance() ?
     change_basic_currency()
     set_exchange_rates()
     send_report_to_email()
@@ -1384,14 +1534,14 @@ def welcome_response(req_for_uid):
 
     if not ourclient: # new user, without any log
         payload = {
-            "speech": "Hi, {}. I'm a CommonBalanceBot - here to help you with tracking transactions with your friends.\nTo start you need a log. Should I create one for you?".format(
+            "speech": "Hi, {}. I'm a CommonBalanceBot - here to help you with tracking shared expenses with your friends.\nTo start you need a log. Should I create one for you?".format(
                 user_first_name),
             "rich_messages": [
                 {
                     "platform": "telegram",
                     "type": 1,
                     "title": "Hi, {}!".format(user_first_name),
-                    "subtitle": "I'm a CommonBalanceBot - here to help you with tracking transactions with your friends.\nTo start you need a log. Should I create one for you?",
+                    "subtitle": "I'm a CommonBalanceBot - here to help you with tracking shared expenses with your friends.\nTo start you need a log. Should I create one for you?",
                     "buttons": [
                         {
                             "postback": "Create log",
@@ -1685,12 +1835,12 @@ def faq():
         Function displays bot's commands and other info
     '''
     payload = {
-        "speech": "Sorry I didn't get that. What would you like me to do next?",
+        "speech": "SharedExpensesBot was created to help with tracking shared expenses for a group of people.\nHe understands the following commands:\n\nActions with logs:\ncreate log\delete log\n\nActions with users:\nadd user\nremove user\n\nActions with payments:\nadd payment\nmodify payment\ndelete payment\n\nData presentation:\nBalance\nStatement\nStatement to email\nThanks for using SharedExpensesBot!\nIurii Dziuban - March 2018 / iuriid.github.io",
         "rich_messages": [
             {
                 "platform": "telegram",
                 "type": 0,
-                "speech": "\nSharedExpensesBot was created to help with tracking shared expenses for a group of people.\nHere's what it can do:\n",
+                "speech": "\n\nSharedExpensesBot was created to help with tracking shared expenses for a group of people.\nHere's what it can do:\n",
             },
             {
                 "platform": "telegram",
@@ -1713,7 +1863,7 @@ def faq():
                 "title": "Actions with users",
                 "buttons": [
                     {
-                        "postback": "Add user",
+                        "postback": "Add new user",
                         "text": "Add user"
                     },
                     {
@@ -1763,7 +1913,7 @@ def faq():
             {
                 "platform": "telegram",
                 "type": 0,
-                "speech": "Thanks for using SharedExpensesBot!\nIurii Dziuban / iuriid.github.io",
+                "speech": "Thanks for using SharedExpensesBot!\nIurii Dziuban - March 2018 / iuriid.github.io\n\n",
             },
         ]
     }

@@ -44,6 +44,11 @@ def webhook():
         ourspeech = functions_CBB.add_user(req)["payload"]
         res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
+    # CommonBalanceBot - remove user
+    elif action == "commonbalancebot-delete_user":
+        ourspeech = functions_CBB.delete_user(req)["payload"]
+        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+
     # CommonBalanceBot - add new payment
     elif action == "commonbalancebot-add_payment":
         result = functions_CBB.add_payment(req)
