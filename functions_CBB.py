@@ -687,9 +687,13 @@ def add_payment(req):
         elif sum["currency"] == "EUR":
             amount = sum["amount"] * eur_uah
 
+    # 6. User is supposed to enter positive values for payments
+    # Negative values will be *-1
+    if amount<0:
+        amount *= -1
     print('sum_converted: ' + str(amount))
 
-    # 6. Calculate what users get in this transaction
+    # 7. Calculate what users get in this transaction
     # If user2 == empty, then user1 (payer) pays for all, else user1 pays directly to user2, other users' (if such) balance remains unchanged
     if user2 == "": # means that user1 paid for all = he gets his sum - sum/users_quantity, for eg. if 2 users and user1 paid $50, his balance will be +25$
         who_received = "all"
@@ -707,7 +711,7 @@ def add_payment(req):
     print('payer_gets: ' + str(payer_gets))
     print('recipient_gets: ' + str(recipient_gets))
 
-    # 7. Prepare document to be inserted to DB
+    # 8. Prepare document to be inserted to DB
     add_payment_action = {
         # '_id': 0, = creation date, used for sorting
         'creator_id': creator_id,
@@ -741,12 +745,12 @@ def add_payment(req):
         else: # calculate what payer looses
             add_payment_action["transaction_balance"].update({user: payer_gets})
 
-    # 8. Insert document into DB
+    # 9. Insert document into DB
     add_payment_action_id = db[collection_name].insert_one(add_payment_action).inserted_id
 
     print("add_payment_action: {}".format(add_payment_action))
 
-    # 9. Final Ok response
+    # 10. Final Ok response
     response = {"status": "ok", "payload": add_payment_action_id}
 
     return response
@@ -796,6 +800,7 @@ def update_balance(req):
         # 2. Get initial balance from the 1st document by "_id" (date)
         initial_balance = db[collection_name].find_one({"log": "info"})[
             "initial_balance"]  # dictionary - {"Tim": 0, "Dan": 0}
+        print("Initial balance: {}".format(initial_balance))
 
         # 3. Iterate through documents (actions) and get documents with "action_type" == "add_payment" and
         # "deleted.status" == False
@@ -811,6 +816,7 @@ def update_balance(req):
 
             # Get transaction balance (what each active user gets)
             transaction_balance = payment["transaction_balance"]
+            print("transaction_balance: {}".format(transaction_balance))
             total_balance = {}
 
             # Calculate current total balance for each user after this payment
@@ -822,9 +828,11 @@ def update_balance(req):
                     total_balance[user] = user_gets
                     initial_balance[user] = user_gets
 
+            print("Initial balance-X: {}".format(initial_balance))
+
             # If user was deleted and is not present in transaction_balance dict, delete it from
             # initial_balance dict (which is being updated in cycle)
-            for user in initial_balance.keys():
+            for user in list(initial_balance):
                 if user not in transaction_balance.keys():
                     del initial_balance[user]
 
@@ -1323,8 +1331,9 @@ def delete_user(req):
     # Response to be returned
     response = {"status": None, "payload": None}
 
-    # 1. Get input parameters (creator_id, collection_name, user to be deleted)
+    # 1. Get input parameters (creator_id, user to be deleted, creator 1st name)
     creator_id = req_inside(req)["id"]
+    user_first_name = req_inside(req)["first_name"]
     user = req["result"]["parameters"]["user"]
 
     client = MongoClient()
@@ -1360,7 +1369,7 @@ def delete_user(req):
         collection_name = collection["log_last_used"]
 
     # 3. Check if user is not trying to delete him/herself (which is not allowed)
-    if user == creator_id:
+    if user == user_first_name:
         response = {"status": "error", "payload": {"speech": "Sorry, but you can't delete yourself (you are a log owner)"}}
         return response
 
