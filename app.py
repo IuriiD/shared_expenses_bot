@@ -1,15 +1,26 @@
-# webhook only for TestBot
-
 from flask import Flask, request, make_response, jsonify
-import ast # TestBot
+import datetime
+from flask_mail import Mail, Message
 import functions_CBB
 
 app = Flask(__name__)
 
+mail = Mail(app)
+app.config.update(
+    DEBUG=True,
+    MAIL_SERVER='smtp.gmail.com',
+    MAIL_PORT=587,
+    MAIL_USE_SSL=False,
+    MAIL_USE_TLS=True,
+    MAIL_USERNAME = 'mailvulgaris@gmail.com',
+    MAIL_PASSWORD = 'flaskflask'
+)
+mail = Mail(app)
+
 # ###################### Decorators #########################################
 @app.route('/')
 def index():
-    return 'Webhooks for chatbots Plotbot and FoodCompositionChatBot'
+    return 'Webhooks for SharedExpensesBot'
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -49,7 +60,7 @@ def webhook():
         ourspeech = functions_CBB.delete_user(req)["payload"]
         res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
-    # CommonBalanceBot - add new payment
+    # CommonBalanceBot - add new payment OR modify existing payment
     elif action == "commonbalancebot-add_payment":
         result = functions_CBB.add_payment(req)
         if result["status"] != "error":
@@ -63,6 +74,11 @@ def webhook():
     elif action == "commonbalancebot-delete_payment":
         ourspeech = functions_CBB.delete_payment(req)["payload"]
         functions_CBB.update_balance(req)
+        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+
+    # CommonBalanceBot - modify payment (display payment to be modified)
+    elif action == "commonbalancebot-modify_payment":
+        ourspeech = functions_CBB.display_payment2modify(req)["payload"]
         res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - show balance
@@ -88,6 +104,19 @@ def webhook():
     # CommonBalanceBot - taking user back to conversation
     elif action == "commonbalancebot-besidethepoint":
         ourspeech = functions_CBB.besidethepoint()["payload"]
+        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+
+    # CommonBalanceBot - sending statement to email
+    elif action == "commonbalancebot-statement_to_email":
+        print("Sending email!")
+        email = req.get("result").get("parameters").get("email")
+        current_datetime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        statement2mail = functions_CBB.statement(req)["payload"]["rich_messages"][0]["speech"].replace("\n","<br>")
+        msg = Message("SharedExpensesBot: Statement as of {}".format(current_datetime), sender="mailvulgaris@gmail.com", recipients=[email])
+        msg.html = "{}<br><br>Thanks for using SharedExpensesBot!<br>Iurii Dziuban - March 2018 / <a href='https://iuriid.github.io/'>iuriid.github.io</a>".format(statement2mail)
+        mail.send(msg)
+
+        ourspeech = {"speech": "Statemen was successfully sent to your email", "rich_messages": [{"platform": "telegram", "type": 0, "speech": "Statemen was successfully sent to your email"}]}
         res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - display FAQ

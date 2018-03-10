@@ -615,3 +615,82 @@ def delete_log(req):
     'action': 'commonbalancebot-delete_payment'
   }
 }
+
+{
+  'lang': 'en',
+  'originalRequest': {
+    'data': {
+      'message': {
+        'message_id': 1832,
+        'from': {
+          'id': 178180819,
+          'language_code': 'ru-RU',
+          'first_name': 'Iurii',
+          'last_name': 'D.',
+          'is_bot': False
+        },
+        'date': 1520694983,
+        'chat': {
+          'id': 178180819,
+          'first_name': 'Iurii',
+          'last_name': 'D.',
+          'type': 'private'
+        },
+        'text': 'Ann 200'
+      },
+      'update_id': 686221834
+    },
+    'source': 'telegram'
+  },
+  'status': {
+    'webhookTimedOut': False,
+    'errorType': 'success',
+    'code': 200
+  },
+  'timestamp': '2018-03-10T15:16:24.279Z',
+  'id': '4e594927-8796-4b96-a6d1-2021c7f4dddb',
+  'result': {
+    'parameters': {
+      'sum': '',
+      'user2': '',
+      'user1': 'Ann',
+      'sum_basic_currency': '200'
+    },
+    'contexts': [
+      {
+        'parameters': {
+          'user2.original': '',
+          'sum.original': '',
+          'user1.original': 'Ann',
+          'user1': 'Ann',
+          'sum': '',
+          'payment2modify': '5',
+          'sum_basic_currency.original': '200',
+          'payment2modify.original': '5',
+          'user2': '',
+          'sum_basic_currency': '200'
+        },
+        'name': 'modify_payment',
+        'lifespan': 2
+      },
+      {
+        'parameters': {
+          'sum': '',
+          'user1': 'Ann',
+          'payment2modify': '5',
+          'user2': '',
+          'telegram_chat_id': '178180819',
+          'user2.original': '',
+          'sum.original': '',
+          'user1.original': 'Ann',
+          'user.original': '',
+          'sum_basic_currency.original': '200',
+          'user': '',
+          'sum_basic_currency': '200',
+          'payment2modify.original': '5'
+        },
+        'name': 'generic',
+        'lifespan': 0
+      }
+    ],
+    'actionIncomplete': False, 'metadata': {'intentId': '4915b54c-9f15-409b-b160-bf0de8dcb6d3', 'webhookForSlotFillingUsed': 'false', 'intentName': 'replace_payment', 'webhookUsed': 'true'}, 'action': 'commonbalancebot-replace_payment', 'speech': '', 'score': 1.0, 'source': 'agent', 'resolvedQuery': 'Ann 200', 'fulfillment': {'speech': 'Ann paid 200 UAH', 'messages': [{'speech': 'Ann paid 200 UAH', 'type': 0}]}}, 'sessionId': '13459fff-a7d3-4e60-a456-aa07ac68b25f'}

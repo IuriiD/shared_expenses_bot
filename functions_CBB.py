@@ -1,7 +1,5 @@
-# this is the webhook for a TestBot
-
-from flask import Flask, request, make_response, jsonify
-import ast
+#from flask import Flask, request, make_response, jsonify
+#import ast
 import datetime
 import random
 from pymongo import MongoClient
@@ -569,13 +567,15 @@ def delete_log(req):
 
 def add_payment(req):
     '''
-        Function gets
+        Function adds a new payment OR modifies an existing one. It gets
         1) req - info about transaction from JSON via webhook (user1=payer, user2[optinally]=receiver of
         direct payment, otherwise user1 pays for all (including him/herself), payment sum (in basic currency or other
-        currency that has to be converted into basic currency),
-        2) collection name and
+        currency that has to be converted into basic currency); also checks for context "modify_payment" and the
+        number of payment to be modified in it (parameter "payment2modify"). Depending on whether there is this
+        context and parameter, function either adds a new payment or updates payment #payment2modify
+        2) with creator_id it finds collection name and
         calculates what each user gets after this transaction and inserts in collection a document with add
-        payment data - see below
+        payment data or updates payment #payment2modify
     '''
     # Response to be returned
     response = {"status": None, "payload": None}
@@ -585,7 +585,15 @@ def add_payment(req):
     user2 = req.get('result').get('parameters').get('user2') # USER2 is receiver in direct transactions, otherwise USER1 pays for all (including himself), optional
     sum = req.get('result').get('parameters').get('sum') # {"amount": 100, "currency": "USD"}
     sum_basic_currency = req.get('result').get('parameters').get('sum_basic_currency')
-    creator_id = req_inside(req)["id"] # request is supposed to be not from Dialogflows' web demo but from integration platform
+    creator_id = req_inside(req)["id"]
+
+    # Check for context "modify_payment"
+    payment2modify = 0 # default value, if unchanged - add new payment, if !=0 - modify payment #payment2modify
+    req_result = req.get('result')
+    for context in req_result["contexts"]:
+        if context["name"] == "modify_payment":
+            payment2modify = int(context.get("parameters").get("payment2modify"))
+
     client = MongoClient()
     db = client.CBB
     collection = db.clients.find_one({"user_id": creator_id})
@@ -639,8 +647,15 @@ def add_payment(req):
         return response
 
     # 3. Check if user1 and/or user2 belong to active_users (the 1st document in collection, log_info)
-    log_info = db[collection_name].find_one({"log": "info"})
-    users = log_info["active_users"]
+    # If we are adding a new payment then users are the users saved in the 1st document (with "log": "info")
+    # If we are updating some payment then we have to get a list of users from that payment's document ("users": [])
+    if payment2modify == 0:
+        log_info = db[collection_name].find_one({"log": "info"})
+        users = log_info["active_users"]
+    else:
+        users =  db[collection_name].find_one({"payment_n": payment2modify}).get("users")
+# 1983
+
     our_users = ""
     for x in range(len(users)):
         if x == 0:
@@ -756,10 +771,31 @@ def add_payment(req):
         else: # calculate what payer looses
             add_payment_action["transaction_balance"].update({user: payer_gets})
 
-    # 9. Insert document into DB
-    add_payment_action_id = db[collection_name].insert_one(add_payment_action).inserted_id
-
-    print("add_payment_action: {}".format(add_payment_action))
+    # 9. Insert document into DB (for new payments) or update existing document (for modified payments)
+    if payment2modify == 0:
+        add_payment_action_id = db[collection_name].insert_one(add_payment_action).inserted_id
+    else:
+        current_datetime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        db[collection_name].update(
+            {
+                "payment_n": payment2modify
+            },
+            {
+                "$set": {
+                    "modified": {
+                        "status": True,
+                        "date": current_datetime
+                    },
+                    "transaction_balance": add_payment_action["transaction_balance"],
+                    "total_balance": add_payment_action["total_balance"],
+                    "who_paid": user1,
+                    "who_received": who_received,
+                    "amount": amount
+                }
+            }
+        )
+        add_payment_action_id = db[collection_name].find_one({"payment_n": payment2modify}).get("_id")
+# 1920
 
     # 10. Final Ok response
     response = {"status": "ok", "payload": add_payment_action_id}
@@ -1508,10 +1544,8 @@ def delete_payment(req):
     # Response to be returned
     response = {"status": None, "payload": None}
 
-    # 1. Get input parameters (creator_id, user to be deleted, creator 1st name)
+    # 1. Get input parameters (creator_id, # of payment to delete)
     creator_id = req_inside(req)["id"]
-    #user_first_name = req_inside(req)["first_name"]
-    #user = req["result"]["parameters"]["user"]
     payment2delete = req["result"]["parameters"]["payment2delete"]
     print("payment2delete: {}".format(payment2delete))
 
@@ -1606,10 +1640,130 @@ def delete_payment(req):
 
     return response
 
+def display_payment2modify(req):
+    '''
+        Function gets JSON from webhook and extracts user_id (which is further used to get the name of the log)
+        and the number of payment to be modified, then finds the corresponding payment
+        and displays it with instructions to modify
+    '''
+
+    # Response to be returned
+    response = {"status": None, "payload": None}
+
+    # 1. Get input parameters (creator_id, # of payment to modify)
+    creator_id = req_inside(req)["id"]
+    payment2modify = req["result"]["parameters"]["payment2modify"]
+    print("payment2modify: {}".format(payment2modify))
+
+    client = MongoClient()
+    db = client.CBB
+    collection = db.clients.find_one({"user_id": creator_id})
+
+    # 2. Check if log exists
+    if not collection or collection["log_last_used"] == "":
+        payload = {
+            "speech": "Sorry but you don't have any logs. Would you like me to create one for you?",
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Sorry but you don't have any logs",
+                    "subtitle": "Would you like me to create one for you?",
+                    "buttons": [
+                        {
+                            "postback": "Create log",
+                            "text": "Create log"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+        response = {"status": "error", "payload": payload}
+        return response
+    else:
+        collection_name = collection["log_last_used"]
+    print("collection_name: {}".format(collection_name))
+
+    # 3. Find document with "action_type": "add_payment" and "payment_n": payment2modify
+    try:
+        payment2modify = int(payment2modify)
+        filter1 = {"action_type": "add_payment"}
+        filter2 = {"payment_n": payment2modify}
+        modified_payment = db[collection_name].find_one({"$and": [filter1, filter2]})
+        print("modofied_payment: {}".format(modified_payment))
+
+        if not modified_payment:
+            response = {"status": "error", "payload": {"speech": "Sorry, but I failed to find payment {}".format(payment2modify)}}
+            return response
+        else:
+            # 4. Get payment parameters and compile them for display
+            # Payments counter
+            payment_number = modified_payment["payment_n"]
+
+            # Payment's date/time
+            timestamp = "{} {}".format(modified_payment["_id"].generation_time.date(), modified_payment["_id"].generation_time.time())
+
+            # Payer
+            who_paid = modified_payment["who_paid"]
+
+            # Beneficiary(-ies)
+            if modified_payment["who_received"] == "all":
+                who_received = "for all"
+            else:
+                who_received = "to {}".format(modified_payment["who_received"])
+
+            # Payment sum
+            amount_basic_currency = modified_payment["amount"]
+
+            # Balance
+            balance = ""
+            for user, user_balance in modified_payment["total_balance"].items():
+                if balance != "":
+                    balance += "\n"
+                balance += "{}: {}".format(user, "{0:.2f}".format(user_balance))
+
+            # Users
+            users = modified_payment["users"]
+            if len(users) == 2:
+                users_list = "users {} and {}".format(users[0], users[1])
+            else:
+                users_list = "users "
+                for x in range(len(users)):
+                    if x > 0 and x < (len(users)-1):
+                        users_list += ", "
+                    elif x == len(users)-1:
+                        users_list += " and "
+                    users_list += users[x]
+
+            # Compose block for "add_payment" action
+            payment_statement = "Date/Time: {}\nTransaction #: {}\n{} paid {} {} {}\nBalance: \n{}".format(timestamp, payment_number, who_paid, amount_basic_currency, BASIC_CURRENCY, who_received, balance)
+
+    except Exception as error:
+        response = {"status": "error", "payload": {"speech": "modify_payment(): {}".format(error)}}
+        return response
+
+    # 5. Final Ok response
+    delimiter = "*"*27
+    payload = {
+        "speech": "So you want to modify the following payment:\n{}\n{}\n{}\nOk, please enter a new payment for {} which will be saved instead of this one".format(delimiter, payment_statement, delimiter, users_list),
+        "rich_messages": [
+            {
+                "platform": "telegram",
+                "type": 0,
+                "speech": "So you want to modify the following payment:\n{}\n{}\n{}\nOk, please enter a new payment for {} which will be saved instead of this one".format(delimiter, payment_statement, delimiter, users_list)
+            }
+        ]
+    }
+    response = {"status": "ok", "payload": payload}
+
+    return response
+
 '''
     Functions left to create:
-    edit_payment()
-    delete_payment()
     set_initial_balance() ?
     change_basic_currency()
     set_exchange_rates()
@@ -2068,4 +2222,4 @@ collection_name = "kappa-bat-280218"
 #print(delete_user(collection_name, creator_id, "Ron"))
 #print(statement(collection_name))
 #print(check_for_logs(myinput2))
-print(delete_payment(myinput2))
+#print(delete_payment(myinput2))
