@@ -80,64 +80,75 @@ myinput1 = {
 }
 
 myinput2 = {
-  "id": "5edfed55-16f3-44de-bf21-31ef27c0f2c0",
-  "timestamp": "2018-02-23T08:44:50.44Z",
-  "lang": "en",
-  "result": {
-    "source": "agent",
-    "resolvedQuery": "balance Victor",
-    "action": "balance",
-    "actionIncomplete": False,
-    "parameters": {
-      "user": ""
+  'originalRequest': {
+    'source': 'telegram',
+    'data': {
+      'message': {
+        'date': 1520676018,
+        'text': 'delete payment 5',
+        'message_id': 1732,
+        'chat': {
+          'id': 178180819,
+          'last_name': 'D.',
+          'type': 'private',
+          'first_name': 'Iurii'
+        },
+        'from': {
+          'id': 178180819,
+          'language_code': 'ru-RU',
+          'last_name': 'D.',
+          'first_name': 'Iurii',
+          'is_bot': False
+        }
+      },
+      'update_id': 686221788
+    }
+  },
+  'timestamp': '2018-03-10T10:00:19.058Z',
+  'lang': 'en',
+  'status': {
+    'code': 200,
+    'errorType': 'success',
+    'webhookTimedOut': False
+  },
+  'id': 'd9b23db8-36be-4113-a0b9-041004afca79',
+  'sessionId': '0d600684-016b-4c3c-9b7a-f27151c366c4',
+  'result': {
+    'metadata': {
+      'intentId': '347ac348-c667-45be-8dd7-34693f6ce66e',
+      'webhookForSlotFillingUsed': 'false',
+      'webhookUsed': 'true',
+      'intentName': 'delete_payment'
     },
-    "contexts": [],
-    "metadata": {
-      "intentId": "2261701a-bce0-44b1-b4fd-806037e04de6",
-      "webhookUsed": "false",
-      "webhookForSlotFillingUsed": "false",
-      "intentName": "balance"
-    },
-    "fulfillment": {
-      "speech": "Showing current balance for user Victor",
-      "messages": [
+    'speech': '',
+    'fulfillment': {
+      'speech': '',
+      'messages': [
         {
-          "type": 0,
-          "speech": "Showing current balance for user Victor"
+          'speech': '', 'type': 0
         }
       ]
     },
-    "score": 0.9200000166893005
-  },
-  "status": {
-    "code": 200,
-    "errorType": "success",
-    "webhookTimedOut": False
-  },
-  "sessionId": "ad0d56ff-2dc1-4720-8516-067ce9c1cd55",
-    'originalRequest': {
-        'data': {
-            'update_id': 686221086,
-            'message': {
-                'message_id': 499,
-                'text': '000000',
-                'from': {
-                    'id': 178180819,
-                    'last_name': 'D.',
-                    'is_bot': False,
-                    'language_code': 'ru-RU',
-                    'first_name': 'Iurii'},
-                'chat': {
-                    'id': 178180819,
-                    'last_name': 'D.',
-                    'type': 'private',
-                    'first_name': 'Iurii'
-                },
-                'date': 1519572336
-            }
+    'parameters': {
+      'payment2delete': '5'
+    },
+    'score': 1.0,
+    'resolvedQuery': 'delete payment 5',
+    'contexts': [
+      {
+        'parameters': {
+          'payment2delete.original': '5',
+          'telegram_chat_id': '178180819',
+          'payment2delete': '5'
         },
-        'source': 'telegram'
-    }
+        'lifespan': 4,
+        'name': 'generic'
+      }
+    ],
+    'source': 'agent',
+    'actionIncomplete': False,
+    'action': 'commonbalancebot-delete_payment'
+  }
 }
 
 myinput3 = {
@@ -1484,6 +1495,117 @@ def delete_user(req):
 
     return response
 
+def delete_payment(req):
+    '''
+        Function gets JSON from webhook and extracts user_id (which is further used to get the name of the log)
+        and the number of payment to be removed, then finds the corresponding payment
+        (document with "action_type": "add_payment" and "payment_n": payment2delete) and
+        1) changes deleted.status from False to True, and also sets deleted.date to current date/time
+        2) changes "payment_n" to "DELETED" (>> update_balance() )
+        3) returns a message about payment deletion
+    '''
+
+    # Response to be returned
+    response = {"status": None, "payload": None}
+
+    # 1. Get input parameters (creator_id, user to be deleted, creator 1st name)
+    creator_id = req_inside(req)["id"]
+    #user_first_name = req_inside(req)["first_name"]
+    #user = req["result"]["parameters"]["user"]
+    payment2delete = req["result"]["parameters"]["payment2delete"]
+    print("payment2delete: {}".format(payment2delete))
+
+    client = MongoClient()
+    db = client.CBB
+    collection = db.clients.find_one({"user_id": creator_id})
+
+    # 2. Check if log exists
+    if not collection or collection["log_last_used"] == "":
+        payload = {
+            "speech": "Sorry but you don't have any logs. Would you like me to create one for you?",
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Sorry but you don't have any logs",
+                    "subtitle": "Would you like me to create one for you?",
+                    "buttons": [
+                        {
+                            "postback": "Create log",
+                            "text": "Create log"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+        response = {"status": "error", "payload": payload}
+        return response
+    else:
+        collection_name = collection["log_last_used"]
+    print("collection_name: {}".format(collection_name))
+
+    # 3. Find document with "action_type": "add_payment" and "payment_n": payment2delete
+    try:
+        payment2delete = int(payment2delete)
+
+        filter1 = {"action_type": "add_payment"}
+        filter2 = {"payment_n": payment2delete}
+        deleted_payment = db[collection_name].find_one({"$and": [filter1, filter2]})
+        print("deleted_payment: {}".format(deleted_payment))
+
+        if not deleted_payment:
+            response = {"status": "error", "payload": {"speech": "Sorry, but I failed to find payment {}".format(payment2delete)}}
+            return response
+        else:
+            # 4. Change deleted.status from False to True, set deleted.date to current date/time, payment_n >> "DELETED"
+            current_datetime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            db[collection_name].update_one({"_id": deleted_payment["_id"]}, {'$set': {"deleted.status": True}})
+            db[collection_name].update_one({"_id": deleted_payment["_id"]}, {'$set': {"deleted.date": current_datetime}})
+            db[collection_name].update_one({"_id": deleted_payment["_id"]},
+                                           {'$set': {"payment_n": "DELETED"}})
+
+    except Exception as error:
+        response = {"status": "error", "payload": {"speech": "delete_payment(): {}".format(error)}}
+        return response
+
+    # 5. Final Ok response
+    payload = {
+        "speech": "Payment {} successfully removed. What\'s next?".format(payment2delete),
+        "rich_messages": [
+            {
+                "platform": "telegram",
+                "type": 1,
+                "title": "Payment {} successfully removed".format(payment2delete),
+                "subtitle": "What\'s next?",
+                "buttons": [
+                    {
+                        "postback": "Add new payment",
+                        "text": "Add payment"
+                    },
+                    {
+                        "postback": "Balance",
+                        "text": "Balance"
+                    },
+                    {
+                        "postback": "Statement",
+                        "text": "Statement"
+                    },
+                    {
+                        "postback": "Help",
+                        "text": "Help"
+                    }
+                ]
+            }
+        ]
+    }
+    response = {"status": "ok", "payload": payload}
+
+    return response
+
 '''
     Functions left to create:
     edit_payment()
@@ -1946,3 +2068,4 @@ collection_name = "kappa-bat-280218"
 #print(delete_user(collection_name, creator_id, "Ron"))
 #print(statement(collection_name))
 #print(check_for_logs(myinput2))
+print(delete_payment(myinput2))

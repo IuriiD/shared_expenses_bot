@@ -1,1 +1,0 @@
-{'transactions': [{'transaction_balance': {}, 'timestamp': 'today', 'who_paid': '', 'who_received': 'all', 'amount': 0, 'total_balance': {'Dan': 0, 'Tim': 0}, 'transaction_number': 0}], 'users': ['Tim', 'Dan']}

@@ -544,3 +544,74 @@ def delete_log(req):
     }, 'fulfillment': {'speech': '', 'messages': [{'type': 0, 'speech': ''}]}, 'source': 'agent', 'actionIncomplete': False, 'contexts': [{'lifespan': 6, 'name': 'cookie', 'parameters': {'welcomed': 'yes', 'welcomed.original': '', 'user.original': 'Dan', 'user': 'Dan'}}, {'lifespan': 4, 'name': 'generic', 'parameters': {'telegram_chat_id': '178180819', 'user': 'Dan', 'user.original': 'Dan'}}], 'speech': '', 'score': 1.0, 'resolvedQuery': 'add user Dan'}, 'lang': 'en', 'originalRequest': {'source': 'telegram', 'data': {'update_id': 686221356, 'message': {'from': {'is_bot': False, 'first_name': 'Iurii', 'id': 178180819, 'language_code': 'ru-RU', 'last_name': 'D.'}, 'date': 1520113651, 'text': 'add user Dan', 'message_id': 931, 'chat': {'first_name': 'Iurii', 'type': 'private', 'id': 178180819, 'last_name': 'D.'}}}}, 'status': {'webhookTimedOut': False, 'code': 200, 'errorType': 'success'}, 'sessionId': '82f06b65-9c74-4ac2-b627-71465f633efb', 'id': 'edfea9aa-cd30-4e08-8da9-3adc66dbf03f'}
 
 
+{
+  'originalRequest': {
+    'source': 'telegram',
+    'data': {
+      'message': {
+        'date': 1520676018,
+        'text': 'delete payment 5',
+        'message_id': 1732,
+        'chat': {
+          'id': 178180819,
+          'last_name': 'D.',
+          'type': 'private',
+          'first_name': 'Iurii'
+        },
+        'from': {
+          'id': 178180819,
+          'language_code': 'ru-RU',
+          'last_name': 'D.',
+          'first_name': 'Iurii',
+          'is_bot': False
+        }
+      },
+      'update_id': 686221788
+    }
+  },
+  'timestamp': '2018-03-10T10:00:19.058Z',
+  'lang': 'en',
+  'status': {
+    'code': 200,
+    'errorType': 'success',
+    'webhookTimedOut': False
+  },
+  'id': 'd9b23db8-36be-4113-a0b9-041004afca79',
+  'sessionId': '0d600684-016b-4c3c-9b7a-f27151c366c4',
+  'result': {
+    'metadata': {
+      'intentId': '347ac348-c667-45be-8dd7-34693f6ce66e',
+      'webhookForSlotFillingUsed': 'false',
+      'webhookUsed': 'true',
+      'intentName': 'delete_payment'
+    },
+    'speech': '',
+    'fulfillment': {
+      'speech': '',
+      'messages': [
+        {
+          'speech': '', 'type': 0
+        }
+      ]
+    },
+    'parameters': {
+      'payment2delete': '5'
+    },
+    'score': 1.0,
+    'resolvedQuery': 'delete payment 5',
+    'contexts': [
+      {
+        'parameters': {
+          'payment2delete.original': '5',
+          'telegram_chat_id': '178180819',
+          'payment2delete': '5'
+        },
+        'lifespan': 4,
+        'name': 'generic'
+      }
+    ],
+    'source': 'agent',
+    'actionIncomplete': False,
+    'action': 'commonbalancebot-delete_payment'
+  }
+}
