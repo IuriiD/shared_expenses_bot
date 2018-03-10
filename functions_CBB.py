@@ -1976,6 +1976,218 @@ def welcome_response(req_for_uid):
     response = {"status": "ok", "payload": payload}
     return response
 
+def switch_log_response(req_for_uid):
+    '''
+        Function gets results of request to DB "CBB" / collection "clients" for user_id and returns a message
+        depending on result:
+        1) new user without logs - suggest to create a log;
+        2) existing user with 1 log - can't switch log
+        3) existing user with >1 logs - display buttons for logs to switch between
+    '''
+    # Response to be returned
+    response = {"status": None, "payload": None}
+
+    ourclient = req_for_uid[0]
+    user_first_name = req_for_uid[1]
+
+    if not ourclient: # new user, without any log
+        payload = {
+            "speech": "Hi, {}. I'm a CommonBalanceBot - here to help you with tracking shared expenses with your friends.\nTo start you need a log. Should I create one for you?".format(
+                user_first_name),
+            "rich_messages": [
+                {
+                    "platform": "telegram",
+                    "type": 1,
+                    "title": "Hi, {}!".format(user_first_name),
+                    "subtitle": "I'm a CommonBalanceBot - here to help you with tracking shared expenses with your friends.\nTo start you need a log. Should I create one for you?",
+                    "buttons": [
+                        {
+                            "postback": "Create log",
+                            "text": "Create log"
+                        },
+                        {
+                            "postback": "Help",
+                            "text": "Help"
+                        }
+                    ]
+                }
+            ]
+        }
+
+    else: # existing user
+        if len(ourclient["logs"]) == 0:  # with 0 logs
+            payload = {
+                "speech": "Sorry but you don't have any logs yet. Should I create one for you?".format(
+                    user_first_name),
+                "rich_messages": [
+                    {
+                        "platform": "telegram",
+                        "type": 1,
+                        "title": "Sorry but you don't have any logs yet",
+                        "subtitle": "Should I create one for you?",
+                        "buttons": [
+                            {
+                                "postback": "Create log",
+                                "text": "Create log"
+                            },
+                            {
+                                "postback": "Help",
+                                "text": "Help"
+                            }
+                        ]
+                    }
+                ]
+            }
+
+        elif len(ourclient["logs"]) == 1: # with 1 log
+            payload = {
+                "speech": "{}, you can't switch log because currently you have only one (\"{}\")".format(user_first_name, ourclient["logs"][0]),
+                "rich_messages": [
+                    {
+                        "platform": "telegram",
+                        "type": 1,
+                        "title": "Only 1 log found (\"{}\")".format(ourclient["logs"][0]),
+                        "subtitle": "So you can't switch a log. \nWhat should I do next?",
+                        "buttons": [
+                            {
+                                "postback": "Create log",
+                                "text": "Create log"
+                            },
+                            {
+                                "postback": "Add payment",
+                                "text": "Add payment"
+                            },
+                            {
+                                "postback": "Balance",
+                                "text": "Balance"
+                            },
+                            {
+                                "postback": "Help",
+                                "text": "Help"
+                            }
+                        ]
+                    }
+                ]
+            }
+
+        elif len(ourclient["logs"]) == 2: # with 2 logs
+            log_last_used = ourclient["log_last_used"]
+            another_log = ""
+            for log in ourclient["logs"]:
+                if log != log_last_used:
+                    another_log = log
+
+            payload = {
+                "speech": "So you would like to switch from your current log \"{}\" to log \"{}\", rigth?".format(log_last_used, another_log),
+                "rich_messages": [
+                    {
+                        "platform": "telegram",
+                        "type": 1,
+                        "title": "Please confirm",
+                        "subtitle": "So you would like to switch from your current log \"{}\" to log \"{}\", rigth?".format(log_last_used, another_log),
+                        "buttons": [
+                            {
+                                "postback": another_log,
+                                "text": "Yes, switch to \"{}\"".format(another_log)
+                            }
+                        ]
+                    }
+                ]
+            }
+
+        else: # with >2 logs
+            buttons = []
+            log_last_used = ourclient["log_last_used"]
+            for log in ourclient["logs"]:
+                if log != log_last_used:
+                    buttons.append(
+                        {
+                            "postback": log,
+                            "text": log
+                        }
+                    )
+
+            payload = {
+                "speech": "Now you are working in log \"{}\"\nPlease click the log you would like to switch to".format(log_last_used),
+                "rich_messages": [
+                    {
+                        "platform": "telegram",
+                        "type": 1,
+                        "title": "Please click the log you would like to switch to",
+                        "subtitle": "Now you are working in log \"{}\".\nWhat log do you want to switch to?".format(log_last_used),
+                        "buttons": buttons
+                    }
+                ]
+            }
+
+    # 3. Final Ok response
+    response = {"status": "ok", "payload": payload}
+    return response
+
+def switch_log(req):
+    '''
+        Function gets JSON from webhook, extracts user_id (>> all logs for user) and the name of log user wants
+        to switch to, switches log (in "clients" >> document for user_id changes "log_last_used" to new log) and
+        reports about log switch
+    '''
+    # Response to be returned
+    response = {"status": None, "payload": None}
+
+    # 1. Get user ID and log2switch2 from request
+    user_id = req_inside(req)["id"]
+    log2switch2 = req.get("result").get("parameters").get("log2switch2")
+
+    # 2. Check DB "CBB" >> collection "clients" for such user_id and return created logs and last used log (if such)
+    client = MongoClient()
+    db = client.CBB
+    clients = db["clients"]
+
+    try:
+        criterion1 = {"user_id": user_id}
+        output_filter = {"_id": 0, "logs": 1, "log_last_used": 1}
+        ourclient = clients.find_one(criterion1, output_filter)
+
+        if log2switch2 in ourclient["logs"]:
+            clients.update_one({"user_id": user_id}, {'$set': {"log_last_used": log2switch2}})
+# 1941
+    except Exception as error:
+        response = {"status": "error", "payload": {"speech": "check_for_logs(): {}".format(error)}}
+        return response
+
+    # 3. Final Ok response
+    payload = {
+        "speech": "You were successfully switched to log \"{}\".\nWhat would you like me to do next?".format(log2switch2),
+        "rich_messages": [
+            {
+                "platform": "telegram",
+                "type": 1,
+                "title": "You were successfully switched to log \"{}\"".format(log2switch2),
+                "subtitle": "What would you like me to do next?",
+                "buttons": [
+                    {
+                        "postback": "Add payment",
+                        "text": "Add payment"
+                    },
+                    {
+                        "postback": "Balance",
+                        "text": "Balance"
+                    },
+                    {
+                        "postback": "Statement",
+                        "text": "Statement"
+                    },
+                    {
+                        "postback": "Help",
+                        "text": "Help"
+                    }
+                ]
+            }
+        ]
+    }
+
+    response = {"status": "ok", "payload": payload}
+    return response
+
 def delete_log_response(req_for_uid, contexts):
     '''
         Function gets results of request to DB "CBB" / collection "clients" for user_id and returns a message
@@ -2135,6 +2347,10 @@ def faq():
                     {
                         "postback": "Create log",
                         "text": "Create log"
+                    },
+                    {
+                        "postback": "Switch log",
+                        "text": "Switch log"
                     },
                     {
                         "postback": "Delete log",

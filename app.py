@@ -39,6 +39,17 @@ def webhook():
         ourspeech = functions_CBB.create_log(req)["payload"]
         res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
+    # CommonBalanceBot - switch log button clicked
+    elif action == "commonbalancebot-switch_log_button":
+        req_for_uid = functions_CBB.check_for_logs(req)["payload"]
+        ourspeech = functions_CBB.switch_log_response(req_for_uid)["payload"]
+        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+
+    # CommonBalanceBot - switch log
+    elif action == "commonbalancebot-switch_log":
+        ourspeech = functions_CBB.switch_log(req)["payload"]
+        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+
     # CommonBalanceBot - delete log
     elif action == "commonbalancebot-delete_log":
         req_for_uid = functions_CBB.check_for_logs(req)["payload"]
