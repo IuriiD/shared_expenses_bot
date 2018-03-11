@@ -2087,7 +2087,7 @@ def switch_log_response(req_for_uid):
                         "subtitle": "So you would like to switch from your current log \"{}\" to log \"{}\", rigth?".format(log_last_used, another_log),
                         "buttons": [
                             {
-                                "postback": another_log,
+                                "postback": "Switch to log {}".format(another_log),
                                 "text": "Yes, switch to \"{}\"".format(another_log)
                             }
                         ]
@@ -2102,7 +2102,7 @@ def switch_log_response(req_for_uid):
                 if log != log_last_used:
                     buttons.append(
                         {
-                            "postback": log,
+                            "postback": "Switch to log {}".format(log),
                             "text": log
                         }
                     )
@@ -2133,9 +2133,12 @@ def switch_log(req):
     # Response to be returned
     response = {"status": None, "payload": None}
 
+    print("req-switch_log: {}".format(req))
+
     # 1. Get user ID and log2switch2 from request
     user_id = req_inside(req)["id"]
     log2switch2 = req.get("result").get("parameters").get("log2switch2")
+    print("log2switch2: {}".format(log2switch2))
 
     # 2. Check DB "CBB" >> collection "clients" for such user_id and return created logs and last used log (if such)
     client = MongoClient()
@@ -2146,9 +2149,43 @@ def switch_log(req):
         criterion1 = {"user_id": user_id}
         output_filter = {"_id": 0, "logs": 1, "log_last_used": 1}
         ourclient = clients.find_one(criterion1, output_filter)
-
+        print("ourclient['logs']: {}".format(ourclient["logs"]))
         if log2switch2 in ourclient["logs"]:
             clients.update_one({"user_id": user_id}, {'$set': {"log_last_used": log2switch2}})
+        else:
+            payload = {
+                "speech": "Log \"{}\" not found".format(log2switch2),
+                "rich_messages": [
+                    {
+                        "platform": "telegram",
+                        "type": 1,
+                        "title": "Log \"{}\" not found".format(log2switch2),
+                        "subtitle": "What would you like me to do next?",
+                        "buttons": [
+                            {
+                                "postback": "Switch log",
+                                "text": "Switch log"
+                            },
+                            {
+                                "postback": "Add payment",
+                                "text": "Add payment"
+                            },
+                            {
+                                "postback": "Balance",
+                                "text": "Balance"
+                            },
+
+                            {
+                                "postback": "Help",
+                                "text": "Help"
+                            }
+                        ]
+                    }
+                ]
+            }
+
+            response = {"status": "error", "payload": payload}
+            return response
 # 1941
     except Exception as error:
         response = {"status": "error", "payload": {"speech": "check_for_logs(): {}".format(error)}}
