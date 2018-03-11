@@ -1,7 +1,8 @@
 from flask import Flask, request, make_response, jsonify
-import datetime
 from flask_mail import Mail, Message
-import functions_CBB
+import datetime
+import functions_SEB
+from keys import mail_pwd
 
 app = Flask(__name__)
 
@@ -13,7 +14,7 @@ app.config.update(
     MAIL_USE_SSL=False,
     MAIL_USE_TLS=True,
     MAIL_USERNAME = 'mailvulgaris@gmail.com',
-    MAIL_PASSWORD = 'flaskflask'
+    MAIL_PASSWORD = mail_pwd
 )
 mail = Mail(app)
 
@@ -30,110 +31,110 @@ def webhook():
 
     # CommonBalanceBot - welcome
     if action == "commonbalancebot-welcome":
-        req_for_uid = functions_CBB.check_for_logs(req)["payload"]
-        ourspeech = functions_CBB.welcome_response(req_for_uid)["payload"]
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        req_for_uid = functions_SEB.check_for_logs(req)["payload"]
+        ourspeech = functions_SEB.welcome_response(req_for_uid)["payload"]
+        res = functions_SEB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - create log
     elif action == "commonbalancebot-create_log":
-        ourspeech = functions_CBB.create_log(req)["payload"]
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        ourspeech = functions_SEB.create_log(req)["payload"]
+        res = functions_SEB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - switch log button clicked
     elif action == "commonbalancebot-switch_log_button":
-        req_for_uid = functions_CBB.check_for_logs(req)["payload"]
-        ourspeech = functions_CBB.switch_log_response(req_for_uid)["payload"]
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        req_for_uid = functions_SEB.check_for_logs(req)["payload"]
+        ourspeech = functions_SEB.switch_log_response(req_for_uid)["payload"]
+        res = functions_SEB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - switch log
     elif action == "commonbalancebot-switch_log":
-        ourspeech = functions_CBB.switch_log(req)["payload"]
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        ourspeech = functions_SEB.switch_log(req)["payload"]
+        res = functions_SEB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - delete log
     elif action == "commonbalancebot-delete_log":
-        req_for_uid = functions_CBB.check_for_logs(req)["payload"]
-        ourspeech = functions_CBB.delete_log_response(req_for_uid, req['result']['contexts'])
-        res = functions_CBB.commonbalancebot_speech(ourspeech["payload"], action, ourspeech["contexts"])
+        req_for_uid = functions_SEB.check_for_logs(req)["payload"]
+        ourspeech = functions_SEB.delete_log_response(req_for_uid, req['result']['contexts'])
+        res = functions_SEB.commonbalancebot_speech(ourspeech["payload"], action, ourspeech["contexts"])
 
     # CommonBalanceBot - delete log - deletion confirmed
     elif action == "commonbalancebot-delete_log-do_it":
-        ourspeech = functions_CBB.delete_log(req)["payload"]
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        ourspeech = functions_SEB.delete_log(req)["payload"]
+        res = functions_SEB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - add new user
     elif action == "commonbalancebot-add_user":
-        ourspeech = functions_CBB.add_user(req)["payload"]
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        ourspeech = functions_SEB.add_user(req)["payload"]
+        res = functions_SEB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - remove user
     elif action == "commonbalancebot-delete_user":
-        ourspeech = functions_CBB.delete_user(req)["payload"]
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        ourspeech = functions_SEB.delete_user(req)["payload"]
+        res = functions_SEB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - add new payment OR modify existing payment
     elif action == "commonbalancebot-add_payment":
-        result = functions_CBB.add_payment(req)
+        result = functions_SEB.add_payment(req)
         if result["status"] != "error":
-            functions_CBB.update_balance(req)
-            ourspeech = functions_CBB.balance(req)["payload"]
+            functions_SEB.update_balance(req)
+            ourspeech = functions_SEB.balance(req)["payload"]
         else:
             ourspeech = result["payload"]
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        res = functions_SEB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - delete payment
     elif action == "commonbalancebot-delete_payment":
-        ourspeech = functions_CBB.delete_payment(req)["payload"]
-        functions_CBB.update_balance(req)
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        ourspeech = functions_SEB.delete_payment(req)["payload"]
+        functions_SEB.update_balance(req)
+        res = functions_SEB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - modify payment (display payment to be modified)
     elif action == "commonbalancebot-modify_payment":
-        ourspeech = functions_CBB.display_payment2modify(req)["payload"]
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        ourspeech = functions_SEB.display_payment2modify(req)["payload"]
+        res = functions_SEB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - show balance
     elif action == "commonbalancebot-balance":
-        functions_CBB.update_balance(req)
+        functions_SEB.update_balance(req)
         user = req.get('result').get('parameters').get('user')
         if user == "":
             user = "all"
-        ourspeech = functions_CBB.balance(req, user)["payload"]
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        ourspeech = functions_SEB.balance(req, user)["payload"]
+        res = functions_SEB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - show statement
     elif action == "commonbalancebot-statement":
-        ourspeech = functions_CBB.statement(req)["payload"]
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        ourspeech = functions_SEB.statement(req)["payload"]
+        res = functions_SEB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - get json
     elif action == "commonbalancebot-getjson":
         ourspeech = 'hello'
         #print(str(req))
-        res = functions_CBB.commonbalancebot_speech2(ourspeech, action, req['result']['contexts'])
+        res = functions_SEB.commonbalancebot_speech2(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - taking user back to conversation
     elif action == "commonbalancebot-besidethepoint":
-        ourspeech = functions_CBB.besidethepoint()["payload"]
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        ourspeech = functions_SEB.besidethepoint()["payload"]
+        res = functions_SEB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - sending statement to email
     elif action == "commonbalancebot-statement_to_email":
         print("Sending email!")
         email = req.get("result").get("parameters").get("email")
         current_datetime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        statement2mail = functions_CBB.statement(req)["payload"]["rich_messages"][0]["speech"].replace("\n","<br>")
+        statement2mail = functions_SEB.statement(req)["payload"]["rich_messages"][0]["speech"].replace("\n","<br>")
         msg = Message("SharedExpensesBot: Statement as of {}".format(current_datetime), sender="mailvulgaris@gmail.com", recipients=[email])
         msg.html = "{}<br><br>Thanks for using SharedExpensesBot!<br>Iurii Dziuban - March 2018 / <a href='https://iuriid.github.io/'>iuriid.github.io</a>".format(statement2mail)
         mail.send(msg)
 
         ourspeech = {"speech": "Statemen was successfully sent to your email", "rich_messages": [{"platform": "telegram", "type": 0, "speech": "Statemen was successfully sent to your email"}]}
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        res = functions_SEB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     # CommonBalanceBot - display FAQ
     elif action == "commonbalancebot-faq":
-        ourspeech = functions_CBB.faq()["payload"]
-        res = functions_CBB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
+        ourspeech = functions_SEB.faq()["payload"]
+        res = functions_SEB.commonbalancebot_speech(ourspeech, action, req['result']['contexts'])
 
     else:
         # If the request is not of our actions throw an error

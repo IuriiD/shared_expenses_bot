@@ -1,242 +1,8 @@
-#from flask import Flask, request, make_response, jsonify
-#import ast
 import datetime
 import random
 from pymongo import MongoClient
-
-BASIC_CURRENCY = 'UAH'
-
-# Exchange rates to be substituted with calls to some API
-usd_uah = 26.9
-eur_uah = 33.1
-
-myinput1 = {
-  "id": "d75f7d46-155f-4a2f-add5-75b5fc4f2596",
-  "timestamp": "2018-02-22T09:01:10.433Z",
-  "lang": "en",
-  "result": {
-    "source": "agent",
-    "resolvedQuery": "Dan 50 UAH Tim",
-    "action": "testbot",
-    "actionIncomplete": False,
-    "parameters": {
-      "user1": "Dan",
-      "sum": {
-        "amount": 500,
-        "currency": "UAH"
-      },
-      "sum_basic_currency": "",
-      "user2": "Tim"
-    },
-    "contexts": [],
-    "metadata": {
-      "intentId": "83b7244a-7595-4f67-8b72-85199ded352a",
-      "webhookUsed": "false",
-      "webhookForSlotFillingUsed": "false",
-      "intentName": "add_payment"
-    },
-    "fulfillment": {
-      "speech": "Dan paid 50 USD to Tim",
-      "messages": [
-        {
-          "type": 0,
-          "speech": "Dan paid 50 USD to Tim"
-        }
-      ]
-    },
-    "score": 0.9300000071525574
-  },
-  "status": {
-    "code": 200,
-    "errorType": "success",
-    "webhookTimedOut": False
-  },
-    "sessionId": "ad0d56ff-2dc1-4720-8516-067ce9c1cd55",
-    'originalRequest': {
-        'data': {
-            'update_id': 686221086,
-            'message': {
-                'message_id': 499,
-                'text': '000000',
-                'from': {
-                    'id': 178180819,
-                    'last_name': 'D.',
-                    'is_bot': False,
-                    'language_code': 'ru-RU',
-                    'first_name': 'Iurii'},
-                'chat': {
-                    'id': 178180819,
-                    'last_name': 'D.',
-                    'type': 'private',
-                    'first_name': 'Iurii'
-                },
-                'date': 1519572336
-            }
-        },
-        'source': 'telegram'
-    }
-}
-
-myinput2 = {
-  'originalRequest': {
-    'source': 'telegram',
-    'data': {
-      'message': {
-        'date': 1520676018,
-        'text': 'delete payment 5',
-        'message_id': 1732,
-        'chat': {
-          'id': 178180819,
-          'last_name': 'D.',
-          'type': 'private',
-          'first_name': 'Iurii'
-        },
-        'from': {
-          'id': 178180819,
-          'language_code': 'ru-RU',
-          'last_name': 'D.',
-          'first_name': 'Iurii',
-          'is_bot': False
-        }
-      },
-      'update_id': 686221788
-    }
-  },
-  'timestamp': '2018-03-10T10:00:19.058Z',
-  'lang': 'en',
-  'status': {
-    'code': 200,
-    'errorType': 'success',
-    'webhookTimedOut': False
-  },
-  'id': 'd9b23db8-36be-4113-a0b9-041004afca79',
-  'sessionId': '0d600684-016b-4c3c-9b7a-f27151c366c4',
-  'result': {
-    'metadata': {
-      'intentId': '347ac348-c667-45be-8dd7-34693f6ce66e',
-      'webhookForSlotFillingUsed': 'false',
-      'webhookUsed': 'true',
-      'intentName': 'delete_payment'
-    },
-    'speech': '',
-    'fulfillment': {
-      'speech': '',
-      'messages': [
-        {
-          'speech': '', 'type': 0
-        }
-      ]
-    },
-    'parameters': {
-      'payment2delete': '5'
-    },
-    'score': 1.0,
-    'resolvedQuery': 'delete payment 5',
-    'contexts': [
-      {
-        'parameters': {
-          'payment2delete.original': '5',
-          'telegram_chat_id': '178180819',
-          'payment2delete': '5'
-        },
-        'lifespan': 4,
-        'name': 'generic'
-      }
-    ],
-    'source': 'agent',
-    'actionIncomplete': False,
-    'action': 'commonbalancebot-delete_payment'
-  }
-}
-
-myinput3 = {
-  'originalRequest': {
-    'source': 'telegram',
-    'data': {
-      'callback_query': {
-        'from': {
-          'last_name': 'D.',
-          'first_name': 'Iurii',
-          'language_code': 'ru-RU',
-          'is_bot': False,
-          'id': 178180819
-        },
-        'message': {
-          'date': 1519933138,
-          'entities': [
-            {
-              'type': 'bold',
-              'length': 10,
-              'offset': 0
-            }
-          ],
-          'from': {
-            'username': 'YetAnotherTestChatBot',
-            'id': 452144171,
-            'is_bot': True,
-            'first_name': 'TestTestTestBot'
-          },
-          'text': "Hi, Iurii!\nI'm a CommonBalanceBot - here to help you with tracking transactions with your friends.\nTo start you need a log. Should I create one for you?",
-          'message_id': 589,
-          'chat': {
-            'id': 178180819,
-            'last_name': 'D.',
-            'type': 'private',
-            'first_name': 'Iurii'
-          }
-        },
-        'id': '765280791023790620',
-        'data': 'Create log',
-        'chat_instance': '-8728995663043026465'
-      },
-      'update_id': 686221134
-    }
-  },
-  'timestamp': '2018-03-01T19:39:01.592Z',
-  'lang': 'en',
-  'sessionId': '82821da0-d1ef-4caf-8db4-f3602b989e8d',
-  'status': {
-    'errorType': 'success',
-    'code': 200,
-    'webhookTimedOut': False
-  },
-  'id': '91a324b3-403a-40a0-9aa4-b4a4c1d15de9',
-  'result': {
-    'actionIncomplete': False,
-    'source': 'agent',
-    'speech': '',
-    'action': 'commonbalancebot-create_log',
-    'resolvedQuery': 'Create log',
-    'fulfillment': {
-      'messages': [
-        {
-          'speech': '', 'type': 0
-        }
-      ],
-      'speech': ''
-    },
-    'metadata': {
-      'webhookUsed': 'true',
-      'webhookForSlotFillingUsed': 'false',
-      'intentId': 'ec5eb6ae-7785-44fb-9165-67d87d1c509c',
-      'intentName': 'create_log'
-    },
-    'parameters': {},
-    'score': 1.0,
-    'contexts': [
-      {
-        'name': 'cookie',
-        'lifespan': 19,
-        'parameters': {
-          'welcomed.original': '',
-          'welcomed': 'yes'
-        }
-      }
-    ]
-  }
-}
-
-myinput4 = {'transactions': [{'transaction_balance': {}, 'total_balance': {'Ann': 0, 'Tim': 0, 'Dan': 0}, 'who_paid': '', 'who_received': 'all', 'amount': 0, 'timestamp': 'start', 'transaction_number': 0}, {'transaction_balance': {'Ann': -179.33333333333334, 'Tim': 358.66666666666663, 'Dan': -179.33333333333334}, 'total_balance': {'Ann': -179.33, 'Tim': 358.67, 'Dan': -179.33}, 'who_paid': 'Tim', 'who_received': 'all', 'amount': 538.0, 'timestamp': '2018-02-23T10:24:59.404Z', 'transaction_number': 1}, {'transaction_balance': {'Ann': -166.66666666666666, 'Tim': -166.66666666666666, 'Dan': 333.33333333333337}, 'total_balance': {'Ann': -346.0, 'Tim': 192.0, 'Dan': 154.0}, 'who_paid': 'Dan', 'who_received': 'all', 'amount': 500.0, 'timestamp': '2018-02-23T10:25:13.811Z', 'transaction_number': 2}, {'transaction_balance': {'Ann': 200.0, 'Tim': -200.0, 'Dan': 0}, 'total_balance': {'Ann': -146.0, 'Tim': -8.0, 'Dan': 154.0}, 'who_paid': 'Ann', 'who_received': 'Tim', 'amount': 200.0, 'timestamp': '2018-02-23T10:25:33.219Z', 'transaction_number': 3}, {'transaction_balance': {'Ann': 538.0, 'Tim': -269.0, 'Dan': -269.0}, 'total_balance': {'Ann': 392.0, 'Tim': -277.0, 'Dan': -115.0}, 'who_paid': 'Ann', 'who_received': 'all', 'amount': 807.0, 'timestamp': '2018-02-23T10:25:50.724Z', 'transaction_number': 4}, {'transaction_balance': {'Ann': -277.0, 'Tim': 277.0, 'Dan': 0}, 'total_balance': {'Ann': 115.0, 'Tim': 0.0, 'Dan': -115.0}, 'who_paid': 'Tim', 'who_received': 'Ann', 'amount': 277.0, 'timestamp': '2018-02-23T20:07:13.708Z', 'transaction_number': 5}, {'total_balance': {'Ann': 0.0, 'Tim': 0.0, 'Dan': 0.0}, 'transaction_balance': {'Ann': -115.0, 'Tim': 0, 'Dan': 115.0}, 'amount': 115.0, 'who_paid': 'Dan', 'who_received': 'Ann', 'timestamp': '2018-02-23T20:07:24.209Z', 'transaction_number': 6}], 'users': ['Tim', 'Dan', 'Ann']}
+from openexchangerates.exchange import Exchange
+from keys import openexchangerates_pwd
 
 def req_inside(req):
     '''
@@ -333,7 +99,8 @@ def create_log(req):
             'creator_id': creator_id,
             'log_name': collection_name,
             'active_users': [user_first_name],
-            'initial_balance': {user_first_name: 0}
+            'initial_balance': {user_first_name: 0},
+            'basic_currency': 'USD'
         }
 
         create_log_action = {
@@ -580,6 +347,11 @@ def add_payment(req):
     # Response to be returned
     response = {"status": None, "payload": None}
 
+    # Exchange rates
+    app_id = openexchangerates_pwd
+    local_dir = "~/.openexchangerates"
+    exchange = Exchange(local_dir, app_id)
+
     # 1. Get parameters from JSON
     user1 = req.get('result').get('parameters').get('user1') # USER1 is payer, required
     user2 = req.get('result').get('parameters').get('user2') # USER2 is receiver in direct transactions, otherwise USER1 pays for all (including himself), optional
@@ -635,6 +407,8 @@ def add_payment(req):
 
     try: # If such collection exists for creator_id
         log_info = db[collection_name].find_one({"log": "info"})
+        basic_currency = log_info["basic_currency"]
+
         if log_info["creator_id"] != creator_id:
             response = {"status": "error", "payload": {"speech": "You don't have a log named '{}'".format(collection_name)}}
             return response
@@ -706,12 +480,10 @@ def add_payment(req):
     if sum == "":
         amount = float(sum_basic_currency)
     else:
-        if sum["currency"] == BASIC_CURRENCY:
+        if sum["currency"] == basic_currency:
             amount = sum["amount"]
-        elif sum["currency"] == "USD":
-            amount = sum["amount"] * usd_uah
-        elif sum["currency"] == "EUR":
-            amount = sum["amount"] * eur_uah
+        else:
+            amount = round(exchange.exchange(sum["amount"], sum["currency"], basic_currency), 2)
 
     # 6. User is supposed to enter positive values for payments
     # Negative values will be *-1
@@ -1093,6 +865,8 @@ def statement(req):
     try:
         # 2. Check if collection is active (hasn't been deleted)
         log_info = db[collection_name].find_one({"log": "info"})
+        basic_currency = log_info["basic_currency"]
+
         if log_info["log_status"] == "inactive":
             response = {"status": "error", "payload": {"speech": "Log has been deleted"}}
             return response
@@ -1132,7 +906,7 @@ def statement(req):
                     initial_balance += "{}: {}".format(user, "{0:.2f}".format(user_balance))
 
                 # Compose block for "log" action
-                log_statement = "Date/Time: {}\nLog \"{}\" was created\nUsers: {}\nBalance:\n{}".format(timestamp, log_name, initial_users, initial_balance)
+                log_statement = "Date/Time: {}\nLog \"{}\" was created\nBasic currency: {}\nUsers: {}\nBalance:\n{}".format(timestamp, log_name, basic_currency, initial_users, initial_balance)
                 statement += log_statement
 
             # add_payment
@@ -1163,7 +937,7 @@ def statement(req):
                     balance += "{}: {}".format(user, "{0:.2f}".format(user_balance))
 
                 # Compose block for "add_payment" action
-                payment_statement = "Date/Time: {}\nTransaction #: {}\n{} paid {} {} {}\nBalance: \n{}".format(timestamp, payment_number, who_paid, amount_basic_currency, BASIC_CURRENCY, who_received, balance)
+                payment_statement = "Date/Time: {}\nTransaction #: {}\n{} paid {} {} {}\nBalance: \n{}".format(timestamp, payment_number, who_paid, "{0:.2f}".format(amount_basic_currency), basic_currency, who_received, balance)
                 statement += "\n{}\n".format("*"*27)
                 statement += payment_statement
 
@@ -1694,6 +1468,10 @@ def display_payment2modify(req):
         filter1 = {"action_type": "add_payment"}
         filter2 = {"payment_n": payment2modify}
         modified_payment = db[collection_name].find_one({"$and": [filter1, filter2]})
+
+        log_info = db[collection_name].find_one({"log": "info"})
+        basic_currency = log_info["basic_currency"]
+# 1945
         print("modofied_payment: {}".format(modified_payment))
 
         if not modified_payment:
@@ -1740,7 +1518,7 @@ def display_payment2modify(req):
                     users_list += users[x]
 
             # Compose block for "add_payment" action
-            payment_statement = "Date/Time: {}\nTransaction #: {}\n{} paid {} {} {}\nBalance: \n{}".format(timestamp, payment_number, who_paid, amount_basic_currency, BASIC_CURRENCY, who_received, balance)
+            payment_statement = "Date/Time: {}\nTransaction #: {}\n{} paid {} {} {}\nBalance: \n{}".format(timestamp, payment_number, who_paid, amount_basic_currency, basic_currency, who_received, balance)
 
     except Exception as error:
         response = {"status": "error", "payload": {"speech": "modify_payment(): {}".format(error)}}
@@ -2458,21 +2236,3 @@ def faq():
 
     response = {"status": "ok", "payload": payload}
     return response
-##################### TESTING ##############################################
-#creator_id = myinput3["originalRequest"]["data"]["message"]#["chat"]["id"]
-#print(creator_id)
-users = ['Tim', 'Dan', 'Ann']
-collection_name1 = "zeta-beaver-260218"
-collection_name = "kappa-bat-280218"
-
-#print(create_log(creator_id, users))
-#print(add_payment(myinput1, collection_name))
-#print(delete_log(collection_name, creator_id))
-#print(add_user(collection_name, creator_id, "Ron"))
-#print(update_balance(collection_name))
-#print(balance(collection_name))
-#print(statement(collection_name))
-#print(delete_user(collection_name, creator_id, "Ron"))
-#print(statement(collection_name))
-#print(check_for_logs(myinput2))
-#print(delete_payment(myinput2))
