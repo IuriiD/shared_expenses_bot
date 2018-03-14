@@ -1690,7 +1690,7 @@ def welcome_response(req_for_uid):
                     "subtitle": "Continuing with your log \"{}\".\nBy the way you also have a log \"{}\".\nWhat should I do next?".format(log_last_used, another_log),
                     "buttons": [
                         {
-                            "postback": "Open log {}".format(another_log),
+                            "postback": "Switch to log {}".format(another_log),
                             "text": "Open \"{}\"".format(another_log)
                         },
                         {
