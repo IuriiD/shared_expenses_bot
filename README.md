@@ -1,6 +1,6 @@
 # 'SharedExpensesBot' / Chatbot that helps to track shared expenses on the go
 <p>
-    Demo version for Telegram and more details will be soon ;)
+    <a href="http://t.me/SharedExpensesBot"><b>Telegram Demo</b></a>
 </p>
 <p>
     The idea for this training miniproject was suggested by my <a href="https://www.facebook.com/viktor.dziuban">brother</a> who said that it would be nice to have a chatbot that could help to track shared expenses during travels with friends.
