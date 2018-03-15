@@ -24,7 +24,7 @@
         <li>Transactions between users are saved in so called logs. User can have several logs, switch between them, and also delete logs.</li>
         <li>Log creator is automatically added to the list of users and can’t be removed. He can add and delete another users. Users can be added at any stage (at the beginning or after some transactions). Only users with 0 balance can be removed.</li>
         <li>2 types of transactions exist: 1) when somebody pays for all and 2) when one user gives money to another user. Bot understands input like “Tom paid 50 EUR for gas” (also “Tom 50 EUR”), “Dan paid $50 to Mike” (also “Dan $50 Mike”).</li>
-        <li>Basic currency is USD. Payments in other currencies are automatically converted to USD using openexchangerates (https://openexchangerates.org/) API.</li>
+        <li>Basic currency is USD. Payments in other currencies are automatically converted to USD using <a href="https://openexchangerates.org/" target="_blank">openexchangerates</a> API.</li>
         <li>Payments can be modified and removed with automatic recalculation of balance.</li>
         <li>Current balance for all or specific user can be displayed. Statement can be displayed and also sent to email.</li>
     </ul>
@@ -32,11 +32,11 @@
 <p>
     <b>Possible further improvements</b>
     <ul>
-        <li>- Function to set custom exchange rates and initial balance</li>
-        <li>- “Multiplayer” mode: payments can be added by all users in a group (with a system of confirmation of receipt)</li>
-        <li>- Adding charts to display balance, icons and other fancy features</li>
-        <li>- Adding charts to display balance, icons and other fancy features</li>
-        <li>- Porting to Facebook Messenger and other platforms</li>
+        <li>Function to set custom exchange rates and initial balance</li>
+        <li>“Multiplayer” mode: payments can be added by all users in a group (with a system of confirmation of receipt)</li>
+        <li>Adding charts to display balance, icons and other fancy features</li>
+        <li>Adding charts to display balance, icons and other fancy features</li>
+        <li>Porting to Facebook Messenger and other platforms</li>
     </ul>
 </p>
 
