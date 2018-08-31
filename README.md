@@ -9,14 +9,14 @@
 </p>
 <p>
     <b>How it looks like (Telegram)</b>
-    <a href="https://iuriid.github.io/img/cbb-5.jpg" target="_blank"><img src="https://iuriid.github.io/img/cbb-5.jpg" class="img-fluid img-thumbnail" style="max-width: 800px"></a>
+    <a href="https://iuriid.github.io/public/img/cbb-5.jpg" target="_blank"><img src="https://iuriid.github.io/public/img/cbb-5.jpg" class="img-fluid img-thumbnail" style="max-width: 800px"></a>
 </p>
 <p>
     <b>Structure</b>
     <br>Intents structure for SharedExpensesBot is the following:
-    <a href="https://iuriid.github.io/img/seb_intents_structure.gif" target="_blank"><img src="https://iuriid.github.io/img/seb_intents_structure.gif" class="img-fluid img-thumbnail" style="max-width: 800px"></a>
+    <a href="https://iuriid.github.io/public/img/seb_intents_structure.gif" target="_blank"><img src="https://iuriid.github.io/public/img/seb_intents_structure.gif" class="img-fluid img-thumbnail" style="max-width: 800px"></a>
     Bot has 14 functions: welcome, fallback, create/delete log, add/remove user, add/modify/delete payment, show balance/statement, send statement to email and show help). As you can see it uses quite many (17) webhooks. Data is saved in MongoDB.
-    <br><a href="https://iuriid.github.io/img/seb_db.gif" target="_blank"><img src="https://iuriid.github.io/img/seb_db.gif" class="img-fluid img-thumbnail" style="max-width: 800px"></a>
+    <br><a href="https://iuriid.github.io/public/img/seb_db.gif" target="_blank"><img src="https://iuriid.github.io/public/img/seb_db.gif" class="img-fluid img-thumbnail" style="max-width: 800px"></a>
 </p>
 <p>
     <b>What it can do</b>

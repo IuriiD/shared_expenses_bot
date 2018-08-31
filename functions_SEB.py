@@ -7,7 +7,7 @@ from keys import openexchangerates_pwd
 def req_inside(req):
     '''
         Function helps to get user id, user 1st name or other parameters from JSON got via webhook
-        Path depends on wheather user "tapped" an answer or entered it from keyboard
+        Path depends on whether user "tapped" an answer or entered it from keyboard
         Returns correct path
     '''
     if "message" in req["originalRequest"]["data"]:
